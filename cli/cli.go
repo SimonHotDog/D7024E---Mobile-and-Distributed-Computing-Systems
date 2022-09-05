@@ -3,10 +3,16 @@ package cli
 import (
 	"bufio"
 	"d7024e/kademlia"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 )
+
+type command struct {
+	name string
+	arg  string
+}
 
 func PrintHello() {
 	fmt.Println("Hello! This is your CLI speaking!")
@@ -31,31 +37,54 @@ func Open(context *kademlia.Kademlia) {
 			fmt.Println("Error reading input.")
 		}
 
-		input = strings.TrimRight(input, "\r\n")
-		cmd := strings.SplitN(input, " ", 2)
-
-		switch cmd[0] {
-		case "exit":
-			exitApplication()
-		case "get":
-			if len(cmd) != 2 {
-				fmt.Println("Invalid arguments.")
-				continue
-			}
-			getObjectByHash(context, &cmd[1])
-		case "help":
-			printAvaliableCommands()
-		case "put":
-			if len(cmd) != 2 {
-				fmt.Println("Invalid arguments.")
-				continue
-			}
-			putObjectInStore(context, &cmd[1])
-		case "stat":
-			fmt.Println("Not implemented yet") // TODO: Should this be a thing?
-		default:
-			fmt.Println("Command not found. Type 'help' for a list of commands.")
+		cmd := parseCommand(input)
+		if cmd.name == "" {
+			continue
 		}
+
+		result, err := performCommand(context, &cmd)
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+		} else {
+			fmt.Println(result)
+		}
+	}
+
+}
+
+func parseCommand(input string) command {
+	input = strings.TrimRight(input, "\r\n")
+	cmd := strings.SplitN(input, " ", 2)
+
+	if len(cmd) == 2 {
+		return command{cmd[0], cmd[1]}
+	}
+	return command{cmd[0], ""}
+}
+
+func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
+	switch cmd.name {
+	case "exit":
+		exitApplication()
+		return "", nil
+	case "get":
+		if cmd.arg == "" {
+			return "", errors.New("expected 1 argument, but got 0")
+		}
+		getObjectByHash(context, &cmd.arg)
+		return "", nil // TODO: Return object
+	case "help":
+		return getAvaliableCommands(), nil
+	case "put":
+		if cmd.arg == "" {
+			return "", errors.New("expected 1 argument, but got 0")
+		}
+		putObjectInStore(context, &cmd.arg)
+		return "", nil // TODO: Return hash
+	case "stat":
+		return "", errors.New("not implemented yet") // TODO: Should this be a thing?
+	default:
+		return "", errors.New("command not found. Type 'help' for a list of commands")
 	}
 }
 
@@ -81,8 +110,8 @@ func exitApplication() {
 	os.Exit(0)
 }
 
-func printAvaliableCommands() {
-	fmt.Println("Available commands:")
+func getAvaliableCommands() string {
+	var sb strings.Builder
 
 	// Calulate the longest command
 	longestLength := 0
@@ -92,11 +121,12 @@ func printAvaliableCommands() {
 		}
 	}
 
-	// Print avaliable commands and their description
+	// Generate string of avaliable commands and their description
+	sb.WriteString("Available commands:\n")
 	for i := 0; i < len(commands); i++ {
 		line := fmt.Sprintf("  %s%s   %s\n", commands[i][0], strings.Repeat(" ", longestLength-len(commands[i][0])), commands[i][1])
-		fmt.Print(line)
+		sb.WriteString(line)
 	}
 
-	fmt.Println()
+	return sb.String()
 }
