@@ -1,0 +1,9 @@
+for i in {1..5}; do  docker run -t -d -itd --network=Kademlia b66e65554b3c; done
+
+sudo docker exec -ti 58a174296354 sh -c "ping 172.20.0.2"
+
+sudo docker exec -it a4d3300f4a01 bash
+
+docker ps -aq | xargs docker stop | xargs docker rm
+
+docker compose up

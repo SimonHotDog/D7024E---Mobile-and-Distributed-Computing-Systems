@@ -1,4 +1,5 @@
-FROM alpine:latest
+FROM ubuntu:18.04
+RUN apt-get update && apt-get install iputils-ping -y
 
 # Add the commands needed to put your compiled go binary in the container and
 # run it when the container starts.
