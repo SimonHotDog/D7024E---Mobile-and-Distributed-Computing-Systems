@@ -7,8 +7,13 @@ import (
 
 func main() {
 
-	context := kademlia.Kademlia{}
+	me := kademlia.NewContact(kademlia.NewRandomKademliaID(), kademlia.GetOutboundIP())
+	context := kademlia.Kademlia{Me: &me}
+	network := kademlia.Network{Kademlia: &context}
 
-	cli.PrintHello()
+	context.Network = &network
+
+	go network.Listen() // TODO: Notify it is actually listening
+	go context.LookupContact(&me)
 	cli.Open(&context)
 }
