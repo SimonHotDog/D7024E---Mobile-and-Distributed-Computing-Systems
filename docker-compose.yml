@@ -8,7 +8,7 @@
 version: "3"
 services:
   kademliaNodes:
-    image: b66e65554b3c # Make sure your Docker image has this name.
+    image: docker-go # Make sure your Docker image has this name.
     stdin_open: true
     tty: true
     deploy:
