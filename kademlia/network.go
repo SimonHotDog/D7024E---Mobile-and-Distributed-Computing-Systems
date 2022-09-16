@@ -102,18 +102,6 @@ func (network *Network) SendPingMessage(contact *Contact, alive chan bool) {
 	}
 }
 
-func (network *Network) SendFindContactMessage(contact *Contact) {
-	// TODO
-}
-
-func (network *Network) SendFindDataMessage(hash string) {
-	// TODO
-}
-
-func (network *Network) SendStoreMessage(data []byte) {
-	// TODO
-}
-
 // Take actions on a network message
 func (network *Network) incomingDataHandler() {
 	for data := range network.incomingData {
