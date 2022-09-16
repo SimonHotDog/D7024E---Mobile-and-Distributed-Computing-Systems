@@ -137,6 +137,13 @@ func getAvaliableCommands() string {
 }
 
 func debug_sendPing(context *kademlia.Kademlia, args string) {
-	contact := kademlia.Contact{Address: args}
-	context.Network.SendPingMessage(&contact)
+	contact := kademlia.Contact{Address: args, ID: kademlia.NewRandomKademliaID()}
+	alive := make(chan bool)
+	go context.Network.SendPingMessage(&contact, alive)
+
+	if <-alive {
+		fmt.Println("Node is alive")
+	} else {
+		fmt.Println("Node is dead")
+	}
 }
