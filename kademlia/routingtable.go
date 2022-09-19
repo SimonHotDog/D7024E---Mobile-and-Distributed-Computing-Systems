@@ -67,3 +67,22 @@ func (routingTable *RoutingTable) getBucketIndex(id *KademliaID) int {
 
 	return IDLength*8 - 1
 }
+
+func (routingTable *RoutingTable) GetNumberOfNodes() int {
+	nodes := 0
+	for _, bucket := range routingTable.buckets {
+		nodes += bucket.Len()
+	}
+	return nodes
+}
+
+func (routingTable *RoutingTable) Nodes() []Contact {
+	var contacts []Contact
+	for _, bucket := range routingTable.buckets {
+		for e := bucket.list.Front(); e != nil; e = e.Next() {
+			x := e.Value.(Contact)
+			contacts = append(contacts, x)
+		}
+	}
+	return contacts
+}
