@@ -3,6 +3,7 @@ package kademlia
 import (
 	"encoding/hex"
 	"math/rand"
+	"time"
 )
 
 // the static number of bytes in a KademliaID
@@ -10,6 +11,11 @@ const IDLength = 20
 
 // type definition of a KademliaID
 type KademliaID [IDLength]byte
+
+func init() {
+	// Avoid NewRandomKademliaID to create identical sequences on program restart
+	rand.Seed(time.Now().UnixNano())
+}
 
 // NewKademliaID returns a new instance of a KademliaID based on the string input
 func NewKademliaID(data string) *KademliaID {

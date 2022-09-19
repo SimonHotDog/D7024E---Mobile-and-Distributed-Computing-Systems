@@ -26,6 +26,8 @@ var commands = [][]string{
 	{"stat", "Displays the status of the network."},
 	{"exit", "Exit the CLI."},
 	{"ping [address]", "DEBUG: Send a ping RPC to the target client"},
+	{"whoami [address]", "DEBUG: Lookup myself at address"},
+	{"routes", "DEBUG: Print routingtable"},
 }
 
 func Open(context *kademlia.Kademlia) {
@@ -88,6 +90,12 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 	case "ping":
 		debug_sendPing(context, cmd.arg)
 		return "", nil
+	case "whoami":
+		debug_lookupMe(context, cmd.arg)
+		return "", nil
+	case "routes":
+		debug_routingTable(context)
+		return "", nil
 	default:
 		return "", errors.New("command not found. Type 'help' for a list of commands")
 	}
@@ -137,7 +145,7 @@ func getAvaliableCommands() string {
 }
 
 func debug_sendPing(context *kademlia.Kademlia, args string) {
-	contact := kademlia.Contact{Address: args, ID: kademlia.NewRandomKademliaID()}
+	contact := kademlia.Contact{Address: args, ID: nil}
 	alive := make(chan bool)
 	go context.Network.SendPingMessage(&contact, alive)
 
@@ -146,4 +154,26 @@ func debug_sendPing(context *kademlia.Kademlia, args string) {
 	} else {
 		fmt.Println("Node is dead")
 	}
+}
+
+func debug_lookupMe(context *kademlia.Kademlia, args string) {
+	contact := kademlia.NewContact(nil, args)
+	contactChannel := make(chan []kademlia.Contact)
+	go context.Network.SendFindContactMessage(&contact, context.Me.ID, contactChannel)
+
+	contacts := <-contactChannel
+	fmt.Printf("Recieved %d nodes close to me from %s\n", len(contacts), contact.Address)
+	for _, contact := range contacts {
+		fmt.Printf("   %s\n", contact.String())
+		context.Routing.AddContact(contact)
+	}
+}
+
+func debug_routingTable(context *kademlia.Kademlia) {
+	out := fmt.Sprintf("I am %s\n\n", context.Me.String())
+	out += fmt.Sprintf("%d nodes in routingtable:\n", context.Routing.GetNumberOfNodes())
+	for _, contact := range context.Routing.Nodes() {
+		out += fmt.Sprintf("   %s\n", contact.String())
+	}
+	fmt.Println(out)
 }
