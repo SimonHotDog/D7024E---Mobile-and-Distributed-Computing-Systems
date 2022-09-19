@@ -11,30 +11,21 @@ type Kademlia struct {
 	Network *Network
 }
 
-type CandidateList struct {
-	l []Candidate
-}
-
-type Candidate struct {
-	contact Contact
-	checked bool
-}
-
 // Hyperparameters
 const K int = 3 //k closest
 const A int = 1 //alpha, 1 is effectively no concurrency
 
 //TODO use mutex for concurrency when needed
 
-func (kademlia *Kademlia) LookupContact(target *Contact) []Contact {
+/*func (kademlia *Kademlia) LookupContact(target *Contact) {
 
-	//List setups.
-	localKClosest := kademlia.routing.FindClosestContacts(target.ID, K) //List of contacts closest to node
-	kClosestList := make([]Contact, 0)                                  //List of k closest
-	kClosestList = append(kClosestList, localKClosest...)
-	toSearch := make([]Contact, 0) //List of nodes to be looked up
-	toSearch = append(toSearch, kClosestList...)
-	searched := make([]Contact, 0) //List of looked up nodes
+	localKClosestList := kademlia.Routing.FindClosestContacts(target.ID, K) //List of contacts closest to node
+
+	res := make(chan []Contact)
+
+	toSearchList := initSearchList()
+
+	panic("error")
 
 	//alpha criterion
 	if len(kClosestList) > A {
@@ -44,12 +35,10 @@ func (kademlia *Kademlia) LookupContact(target *Contact) []Contact {
 	//Call recursive lookup function
 	kClosestList = kademlia.LookupContactInner(toSearch, searched, kClosestList, target)
 
-	return kClosestList
-}
+}*/
 
-// Recursive inner fucntion for node lookup
-func (Kademlia *Kademlia) LookupContactInner(toSearch []Contact, searched []Contact, kClosestList []Contact, target *Contact) []Contact {
-	panic("Not yet implemented")
+func (kademlia *Kademlia) LookupContact(target *Contact) {
+	// TODO
 }
 
 func (kademlia *Kademlia) LookupData(hash string) {
