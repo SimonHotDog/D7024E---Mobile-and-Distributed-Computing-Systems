@@ -20,14 +20,16 @@ func PrintHello() {
 }
 
 var commands = [][]string{
-	{"get", "Takes a hash and downloads the file from the network."},
+	{"get [hash]", "Takes a hash and downloads the file from the network."},
 	{"help", "Help on commands."},
-	{"put", "Uploads a file to the network and returns the hash if succesful."},
+	{"put [text]", "Uploads a file to the network and returns the hash if succesful."},
 	{"stat", "Displays the status of the network."},
 	{"exit", "Exit the CLI."},
+	{"ping [address]", "DEBUG: Send a ping RPC to the target client"},
 }
 
 func Open(context *kademlia.Kademlia) {
+	PrintHello()
 	for {
 		fmt.Print(">>> ")
 		reader := bufio.NewReader(os.Stdin)
@@ -83,6 +85,9 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 		return "", nil // TODO: Return hash
 	case "stat":
 		return "", errors.New("not implemented yet") // TODO: Should this be a thing?
+	case "ping":
+		debug_sendPing(context, cmd.arg)
+		return "", nil
 	default:
 		return "", errors.New("command not found. Type 'help' for a list of commands")
 	}
@@ -129,4 +134,16 @@ func getAvaliableCommands() string {
 	}
 
 	return sb.String()
+}
+
+func debug_sendPing(context *kademlia.Kademlia, args string) {
+	contact := kademlia.Contact{Address: args, ID: kademlia.NewRandomKademliaID()}
+	alive := make(chan bool)
+	go context.Network.SendPingMessage(&contact, alive)
+
+	if <-alive {
+		fmt.Println("Node is alive")
+	} else {
+		fmt.Println("Node is dead")
+	}
 }

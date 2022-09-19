@@ -6,7 +6,9 @@ import (
 )
 
 type Kademlia struct {
-	routing *RoutingTable
+	Routing *RoutingTable
+	Me      *Contact
+	Network *Network
 }
 
 type CandidateList struct {
