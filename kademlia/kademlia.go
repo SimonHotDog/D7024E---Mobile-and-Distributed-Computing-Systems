@@ -40,7 +40,31 @@ const A int = 1 //alpha, 1 is effectively no concurrency
 func (kademlia *Kademlia) LookupContact(target *Contact) {
 
 	kClosestTemp := kademlia.Routing.FindClosestContacts(target.ID, K)
-	c := CandidateList.NewCandidateList(target.ID, kClosestTemp)
+	cl := NewCandidateList(target.ID, kClosestTemp)
+
+	channelList := make([]chan string, K)
+
+	//Call recursive lookup
+
+}
+
+func (kademlia *Kademlia) LookupContactInner(target *Contact, cl *CandidateList, channelList *[]chan string, msg string) {
+
+	nodesChecked := 0
+	ids := []*KademliaID{}
+
+	i := 0
+	kademlia.LookupContactInnerHelper(target, cl, channelList, msg, ids, i, nodesChecked)
+
+}
+
+func (kademlia *Kademlia) LookupContactInnerHelper(target *Contact, cl *CandidateList, channelList *[]chan string, msg string, ids []*KademliaID, i int, nodesChecked int) (int, []*KademliaID) {
+	if !(i < cl.Len() && nodesChecked < A) {
+		return nodesChecked, ids
+	}
+
+	cl.candidates[i].checked = true
+	rpc := kademlia.Network.SendFindContactMessage() //Todo check how to send an rpc with message code
 }
 
 func (kademlia *Kademlia) LookupData(hash string) {

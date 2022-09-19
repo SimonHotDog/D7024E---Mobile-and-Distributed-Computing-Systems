@@ -58,7 +58,7 @@ func (cl *CandidateList) candidateExists(c *Contact) bool {
 	return false
 }
 
-func NewCandidatelist(targetID *KademliaID, candidates []Contact) *CandidateList {
+func NewCandidateList(targetID *KademliaID, candidates []Contact) *CandidateList {
 	cl := &CandidateList{}
 	cl.closestCandidate = &candidates[0]
 	cl.targetID = targetID
