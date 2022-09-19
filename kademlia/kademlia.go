@@ -38,7 +38,9 @@ const A int = 1 //alpha, 1 is effectively no concurrency
 }*/
 
 func (kademlia *Kademlia) LookupContact(target *Contact) {
-	// TODO
+
+	kClosestTemp := kademlia.Routing.FindClosestContacts(target.ID, K)
+	c := CandidateList.NewCandidateList(target.ID, kClosestTemp)
 }
 
 func (kademlia *Kademlia) LookupData(hash string) {

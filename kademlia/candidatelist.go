@@ -58,15 +58,13 @@ func (cl *CandidateList) candidateExists(c *Contact) bool {
 	return false
 }
 
-func initCandidateList(targetID *KademliaID, c []Contact) *CandidateList {
+func NewCandidatelist(targetID *KademliaID, candidates []Contact) *CandidateList {
 	cl := &CandidateList{}
-	cl.closestCandidate = &c[0]
+	cl.closestCandidate = &candidates[0]
 	cl.targetID = targetID
-
-	for i, co := range c {
-		cl.candidates[i] = &Candidate{co, false}
+	for i, contact := range candidates {
+		cl.candidates[i] = &Candidate{contact, false}
 	}
-
 	return cl
 }
 
