@@ -20,3 +20,20 @@ func TestRoutingTable(t *testing.T) {
 		fmt.Println(contacts[i].String())
 	}
 }
+
+func TestAddMeContact(t *testing.T) {
+	testname := "Me should not be added to routingtable"
+	t.Run(testname, func(t *testing.T) {
+		expected := 0
+		me := NewContact(NewRandomKademliaID(), "")
+		rt := NewRoutingTable(me)
+
+		rt.AddContact(me)
+
+		actual := rt.GetNumberOfNodes()
+
+		if actual != expected {
+			t.Errorf("Expected %v, got %v", expected, actual)
+		}
+	})
+}

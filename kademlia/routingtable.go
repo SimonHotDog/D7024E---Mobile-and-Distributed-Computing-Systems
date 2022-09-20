@@ -19,8 +19,11 @@ func NewRoutingTable(me Contact) *RoutingTable {
 	return routingTable
 }
 
-// AddContact add a new contact to the correct Bucket
+// AddContact add a new contact to the correct Bucket. Contact will not be added if it is me
 func (routingTable *RoutingTable) AddContact(contact Contact) {
+	if routingTable.me.ID.Equals(contact.ID) {
+		return
+	}
 	bucketIndex := routingTable.getBucketIndex(contact.ID)
 	bucket := routingTable.buckets[bucketIndex]
 	bucket.AddContact(contact)
