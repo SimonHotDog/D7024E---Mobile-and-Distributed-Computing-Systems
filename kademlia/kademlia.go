@@ -39,33 +39,25 @@ const A int = 1 //alpha, 1 is effectively no concurrency
 
 func (kademlia *Kademlia) LookupContact(target *Contact) {
 
-	kClosestTemp := kademlia.Routing.FindClosestContacts(target.ID, K)
-	cl := NewCandidateList(target.ID, kClosestTemp)
+	//Find the k closest
+	closestList := kademlia.Routing.FindClosestContacts(target.ID, K)
+	cl := NewCandidateList(target.ID, closestList)
 
-	channelList := make([]chan string, K)
-
-	//Call recursive lookup
-
-}
-
-func (kademlia *Kademlia) LookupContactInner(target *Contact, cl *CandidateList, channelList *[]chan string, msg string) {
-
-	nodesChecked := 0
-	ids := []*KademliaID{}
-
-	i := 0
-	kademlia.LookupContactInnerHelper(target, cl, channelList, msg, ids, i, nodesChecked)
-
-}
-
-func (kademlia *Kademlia) LookupContactInnerHelper(target *Contact, cl *CandidateList, channelList *[]chan string, msg string, ids []*KademliaID, i int, nodesChecked int) (int, []*KademliaID) {
-	if !(i < cl.Len() && nodesChecked < A) {
-		return nodesChecked, ids
+	//create channels
+	for i := 0; i < cl.Len(); i++ {
+		cl.candidates[i].channel = make(chan []Contact)
+	}
+	j := 0
+	for i := 0; i < cl.Len() && j < A; i++ {
+		if !cl.candidates[i].checked {
+			go kademlia.Network.SendFindContactMessage(&cl.candidates[i].contact, target.ID, cl.candidates[i].channel)
+			cl.candidates[i].checked = true
+		}
 	}
 
-	cl.candidates[i].checked = true
-	rpc := kademlia.Network.SendFindContactMessage() //Todo check how to send an rpc with message code
 }
+
+func (kademlia *Kademlia) LookupContactInner(target *Contact, j int)
 
 func (kademlia *Kademlia) LookupData(hash string) {
 	// TODO

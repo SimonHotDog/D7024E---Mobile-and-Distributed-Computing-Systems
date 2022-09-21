@@ -11,8 +11,10 @@ type CandidateList struct {
 }
 
 type Candidate struct {
-	contact Contact
-	checked bool
+	contact           Contact //itself
+	checked           bool
+	channel           chan []Contact
+	connectedContacts []Contact
 }
 
 func (cl *CandidateList) addToCandidateList(c *Contact) {
@@ -24,12 +26,12 @@ func (cl *CandidateList) addToCandidateList(c *Contact) {
 
 	if cl.Len() == LIMIT {
 		if c.Less(&cl.candidates[LIMIT-1].contact) {
-			cl.candidates[LIMIT-1] = &Candidate{*c, true}
+			cl.candidates[LIMIT-1] = &Candidate{*c, true, nil, nil}
 		}
 	} else {
 		for i := 0; i < len(cl.candidates); i++ {
 			if cl.candidates[i] == nil {
-				cl.candidates[i] = &Candidate{*c, true}
+				cl.candidates[i] = &Candidate{*c, true, nil, nil}
 			}
 		}
 	}
@@ -63,7 +65,7 @@ func NewCandidateList(targetID *KademliaID, candidates []Contact) *CandidateList
 	cl.closestCandidate = &candidates[0]
 	cl.targetID = targetID
 	for i, contact := range candidates {
-		cl.candidates[i] = &Candidate{contact, false}
+		cl.candidates[i] = &Candidate{contact, false, nil, nil}
 	}
 	return cl
 }
