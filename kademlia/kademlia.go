@@ -42,22 +42,33 @@ func (kademlia *Kademlia) LookupContact(target *Contact) {
 	//Find the k closest
 	closestList := kademlia.Routing.FindClosestContacts(target.ID, K)
 	cl := NewCandidateList(target.ID, closestList)
+	checkedcl := CandidateList{}
 
-	//create channels
-	for i := 0; i < cl.Len(); i++ {
-		cl.candidates[i].channel = make(chan []Contact)
+	var chans [A]chan []Contact //https://stackoverflow.com/questions/2893004/how-to-allocate-an-array-of-channels
+	for i := range chans {
+		chans[i] = make(chan []Contact)
 	}
+
 	j := 0
 	for i := 0; i < cl.Len() && j < A; i++ {
 		if !cl.candidates[i].checked {
-			go kademlia.Network.SendFindContactMessage(&cl.candidates[i].contact, target.ID, cl.candidates[i].channel)
+			go kademlia.Network.SendFindContactMessage(&cl.candidates[i].contact, target.ID, chans[j])
 			cl.candidates[i].checked = true
+			checkedcl.addToCandidateList(&cl.candidates[i].contact)
+			j++
 		}
+	}
+
+	for i := 0; i < len(chans); i++ {
+		temp := <-chans[i]
+		checkedcl.candidates[i].connectedContacts = temp
 	}
 
 }
 
-func (kademlia *Kademlia) LookupContactInner(target *Contact, j int)
+func (kademlia *Kademlia) LookupContactInner(target *Contact, cl *CandidateList) {
+
+}
 
 func (kademlia *Kademlia) LookupData(hash string) {
 	// TODO
