@@ -1,13 +1,14 @@
 package kademlia
 
-import "sort"
+import (
+	"sort"
+)
 
 const LIMIT = 8 //size of the list
 
 type CandidateList struct {
-	candidates       [LIMIT]*Candidate //limit indicates the list limit
-	closestCandidate *Contact
-	targetID         *KademliaID
+	candidates [8]*Candidate //limit indicates the list limit
+	targetID   *KademliaID
 }
 
 type Candidate struct {
@@ -49,7 +50,7 @@ func (cl *CandidateList) getCandidateFromID(id *KademliaID) *Candidate {
 	return nil //TODO. Is this really ok?
 }
 
-//removed candidate from candidate list
+// removed candidate from candidate list
 func (cl *CandidateList) removeFromCandidateList(id *KademliaID) {
 	for i := 0; i < len(cl.candidates); i++ {
 		if (cl.candidates[i] != nil) && cl.candidates[i].contact.ID.Equals(id) {
@@ -71,8 +72,13 @@ func (cl *CandidateList) candidateExists(id *KademliaID) bool {
 
 func NewCandidateList(targetID *KademliaID, candidates []Contact) *CandidateList {
 	cl := &CandidateList{}
-	cl.closestCandidate = &candidates[0]
+	//cl.closestCandidate = &candidates[0]
 	cl.targetID = targetID
+
+	if len(candidates) > LIMIT {
+		candidates = candidates[:LIMIT]
+	}
+
 	for i, contact := range candidates {
 		cl.candidates[i] = &Candidate{contact, false, nil}
 	}
@@ -81,7 +87,7 @@ func NewCandidateList(targetID *KademliaID, candidates []Contact) *CandidateList
 
 //Below Required functions for sort interfacing
 
-//gets length of list
+// gets length of list
 func (cl *CandidateList) Len() int {
 	l := 0
 
@@ -94,7 +100,8 @@ func (cl *CandidateList) Len() int {
 	return l
 }
 
-//Checks less contacts
+// Checks less contacts
+// a and b are indexes of candidates in candidate list
 func (cl *CandidateList) Less(a, b int) bool {
 
 	//Check if either element is null
@@ -110,7 +117,7 @@ func (cl *CandidateList) Less(a, b int) bool {
 	return cl.candidates[a].contact.Less(&cl.candidates[b].contact)
 }
 
-//Swaps 2 elements
+// Swaps 2 elements
 func (cl *CandidateList) Swap(a, b int) {
 	cl.candidates[a], cl.candidates[b] = cl.candidates[b], cl.candidates[a]
 }

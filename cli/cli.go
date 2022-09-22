@@ -28,6 +28,7 @@ var commands = [][]string{
 	{"ping [address]", "DEBUG: Send a ping RPC to the target client"},
 	{"whoami [address]", "DEBUG: Lookup myself at address"},
 	{"routes", "DEBUG: Print routingtable"},
+	{"lookup", "DEBUG: Lookup"},
 }
 
 func Open(context *kademlia.Kademlia) {
@@ -95,6 +96,9 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 		return "", nil
 	case "routes":
 		debug_routingTable(context)
+		return "", nil
+	case "lookup":
+		debug_lookup(context)
 		return "", nil
 	default:
 		return "", errors.New("command not found. Type 'help' for a list of commands")
@@ -176,4 +180,9 @@ func debug_routingTable(context *kademlia.Kademlia) {
 		out += fmt.Sprintf("   %s\n", contact.String())
 	}
 	fmt.Println(out)
+}
+
+func debug_lookup(context *kademlia.Kademlia) {
+	contact := context.LookupContact(*context.Me.ID)
+	fmt.Println(contact)
 }
