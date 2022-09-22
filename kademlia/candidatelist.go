@@ -13,11 +13,11 @@ type CandidateList struct {
 type Candidate struct {
 	contact           Contact //itself
 	checked           bool
-	connectedContacts []Contact
+	connectedContacts *CandidateList
 }
 
 func (cl *CandidateList) addToCandidateList(c *Contact) {
-	if cl.candidateExists(c) {
+	if cl.candidateExists(c.ID) {
 		return
 	}
 
@@ -39,19 +39,29 @@ func (cl *CandidateList) addToCandidateList(c *Contact) {
 
 }
 
+func (cl *CandidateList) getCandidateFromID(id *KademliaID) *Candidate {
+	for i := 0; i < cl.Len(); i++ {
+		if cl.candidates[i].contact.ID == id {
+			return cl.candidates[i]
+		}
+	}
+
+	return nil //TODO. Is this really ok?
+}
+
 //removed candidate from candidate list
-func (cl *CandidateList) removeFromCandidateList(c *Contact) {
+func (cl *CandidateList) removeFromCandidateList(id *KademliaID) {
 	for i := 0; i < len(cl.candidates); i++ {
-		if (cl.candidates[i] != nil) && cl.candidates[i].contact.ID.Equals(c.ID) {
+		if (cl.candidates[i] != nil) && cl.candidates[i].contact.ID.Equals(id) {
 			cl.candidates[i] = nil
 		}
 	}
 }
 
 // Checks if candidate exists
-func (cl *CandidateList) candidateExists(c *Contact) bool {
+func (cl *CandidateList) candidateExists(id *KademliaID) bool {
 	for _, candidate := range cl.candidates {
-		if (candidate != nil) && candidate.contact.ID.Equals(c.ID) {
+		if (candidate != nil) && candidate.contact.ID.Equals(id) {
 			return true
 		}
 	}
