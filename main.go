@@ -1,9 +1,8 @@
 package main
 
 import (
-	"crypto/sha1"
+	"d7024e/cli"
 	"d7024e/kademlia"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -23,20 +22,13 @@ func main() {
 	myAddress := fmt.Sprintf("%s:%d", kademlia.GetOutboundIP(), *port)
 	me := kademlia.NewContact(kademlia.NewRandomKademliaID(), myAddress)
 	context := kademlia.Kademlia{Me: &me, Routing: kademlia.NewRoutingTable(me)}
-	/*network := kademlia.CreateNewNetwork(&context, *port)
+	network := kademlia.CreateNewNetwork(&context, *port)
 
 	context.Network = &network
 
 	go network.Listen() // TODO: Notify it is actually listening
 	go context.LookupContact(&me)
-	cli.Open(&context)*/
-
-	//data store and retrieve test
-	data := []byte("falcon")
-	context.Store(data)
-	sha1 := sha1.Sum(data)
-	key := hex.EncodeToString(sha1[:])
-	println(string(context.LookupData(key)))
+	cli.Open(&context)
 }
 
 func parseCommandlineFlags() (port *int, bootstrapNode *bool, verbose *bool) {

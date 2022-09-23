@@ -21,18 +21,6 @@ func (kademlia *Kademlia) LookupData(hash string) []byte {
 }
 
 func (kademlia *Kademlia) Store(data []byte) {
-	/*
-		find right id first
-
-		if (kademlia.Me.ID ^ closestID == 0) {
-			// we are closest
-			store
-		} else {
-			// find closest and then store
-			find closest
-			store
-		}
-	*/
 	if kademlia.Data == nil {
 		kademlia.Data = make(map[string][]byte)
 	}
