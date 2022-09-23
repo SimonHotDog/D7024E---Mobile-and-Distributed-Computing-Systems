@@ -9,18 +9,23 @@ type Kademlia struct {
 	Routing *RoutingTable
 	Me      *Contact
 	Network *Network
+	Data    map[string][]byte
 }
 
 func (kademlia *Kademlia) LookupContact(target *Contact) {
 	// TODO
 }
 
-func (kademlia *Kademlia) LookupData(hash string) {
-	// TODO
+func (kademlia *Kademlia) LookupData(hash string) []byte {
+	return kademlia.Data[hash]
 }
 
 func (kademlia *Kademlia) Store(data []byte) {
+	if kademlia.Data == nil {
+		kademlia.Data = make(map[string][]byte)
+	}
 
+	kademlia.Data[Hash(data)] = data
 }
 
 // Hashes data and returns key
