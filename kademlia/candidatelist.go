@@ -7,7 +7,7 @@ import (
 const LIMIT = 8 //size of the list
 
 type CandidateList struct {
-	candidates [8]*Candidate //limit indicates the list limit
+	candidates [8]*Candidate //limit indicates the list limit. HARDCODED! FIX LATER!
 	targetID   *KademliaID
 }
 
