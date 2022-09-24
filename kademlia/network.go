@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"time"
+
+	cmap "github.com/orcaman/concurrent-map/v2"
 )
 
 const (
@@ -30,10 +32,11 @@ const (
 type Network struct {
 	Kademlia           *Kademlia
 	incomingData       chan []byte
-	waiters            map[int64](chan NetworkMessage)
+	outgoingMsg        chan NetworkMessage
+	waiters            cmap.ConcurrentMap[chan NetworkMessage]
 	messageCounter     *Counter
 	port               int
-	continueListen     bool
+	quitListenSig      chan struct{}
 	incomingDataSocket *net.UDPConn
 }
 
@@ -51,11 +54,13 @@ func CreateNewNetwork(kademlia *Kademlia, port int) Network {
 	net := Network{
 		Kademlia:       kademlia,
 		incomingData:   make(chan []byte),
-		waiters:        make(map[int64]chan NetworkMessage),
+		outgoingMsg:    make(chan NetworkMessage),
 		messageCounter: MakeCounter(),
 		port:           port,
-		continueListen: false,
+		quitListenSig:  make(chan struct{}, 1),
+		waiters:        cmap.New[chan NetworkMessage](),
 	}
+	go net.messageSender()
 	return net
 }
 
@@ -71,25 +76,29 @@ func (network *Network) Listen() {
 		log.Fatal(err)
 		return
 	}
-	network.continueListen = true
 	network.incomingDataSocket = socket
 
 	defer socket.Close()
 	go network.incomingDataHandler()
 
-	var buf [NETWORK_INCOMING_BUFFER]byte
-	for network.continueListen {
-		len, _, udpError := socket.ReadFromUDP(buf[:])
+	for {
+		buf := make([]byte, NETWORK_INCOMING_BUFFER)
+		select {
+		case <-network.quitListenSig:
+			return
+		default:
+		}
+		// len, _, udpError := socket.ReadFromUDP(buf)
+		len, udpError := socket.Read(buf)
 		if udpError != nil {
 			log.Println(udpError)
 		}
 		network.incomingData <- buf[:len]
 	}
-	fmt.Println("Socket closed")
 }
 
 func (network *Network) StopListen() {
-	network.continueListen = false
+	network.quitListenSig <- struct{}{}
 	network.incomingDataSocket.Close()
 }
 
@@ -101,16 +110,18 @@ func (network *Network) SendPingMessage(contact *Contact, alive chan bool) {
 		Target: contact,
 	}
 
-	network.waiters[msg.ID] = make(chan NetworkMessage, 1)
+	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
 
-	defer delete(network.waiters, msg.ID)
-	go sendMessage(msg)
+	defer network.waiters.Remove(fmt.Sprint(msg.ID))
+	go network.sendMessage(msg)
 
+	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
 	select {
-	case <-network.waiters[msg.ID]:
+	case <-waitchannel:
 		alive <- true
 	case <-time.After(NETWORK_REQUEST_TIMEOUT):
 		alive <- false
+		log.Printf("Ping timeout: %s\n", contact.String())
 	}
 }
 
@@ -127,16 +138,19 @@ func (network *Network) SendFindContactMessage(contact *Contact, id *KademliaID,
 		Body:   id.String(),
 	}
 
-	network.waiters[msg.ID] = make(chan NetworkMessage, 1)
+	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
 
-	defer delete(network.waiters, msg.ID)
-	go sendMessage(msg)
+	defer network.waiters.Remove(fmt.Sprint(msg.ID))
+	go network.sendMessage(msg)
+
+	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
 
 	select {
-	case msg := <-network.waiters[msg.ID]:
+	case msg := <-waitchannel:
 		contacts <- msg.Contacts
 	case <-time.After(NETWORK_REQUEST_TIMEOUT):
 		contacts <- make([]Contact, 0)
+		log.Printf("Find contact timeout: %s\n", contact.String())
 	}
 }
 
@@ -159,9 +173,9 @@ func (network *Network) incomingDataHandler() {
 func (network *Network) messageHandler(msg *NetworkMessage) {
 	network.Kademlia.Routing.AddContact(*msg.Sender)
 
-	if c, ok := network.waiters[msg.ID]; ok {
+	if c, ok := network.waiters.Get(fmt.Sprint(msg.ID)); ok {
 		c <- *msg
-		delete(network.waiters, msg.ID)
+		network.waiters.Remove(fmt.Sprint(msg.ID))
 		return
 	}
 
@@ -169,7 +183,7 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 	case MESSAGE_RPC_PING:
 		msg.RPC = MESSAGE_PONG
 		network.generateReturnMessage(msg)
-		sendMessage(*msg)
+		network.sendMessage(*msg)
 	case MESSAGE_RPC_STORE:
 		// TODO: Implement RPC
 	case MESSAGE_RPC_FIND_NODE:
@@ -179,7 +193,7 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		msg.RPC = MESSAGE_NODE_LIST
 		msg.Contacts = nodes
 		network.generateReturnMessage(msg)
-		sendMessage(*msg)
+		network.sendMessage(*msg)
 	case MESSAGE_RPC_FIND_VALUE:
 		// TODO: Implement RPC
 	case MESSAGE_PONG:
@@ -227,12 +241,20 @@ func (network *Network) generateReturnMessage(msg *NetworkMessage) {
 }
 
 // Send network message
-func sendMessage(msg NetworkMessage) {
-	conn, err := net.Dial("udp", msg.Target.Address)
-	if err != nil {
-		log.Printf("UDP send error: %v", err)
-		return
+func (network *Network) sendMessage(msg NetworkMessage) {
+	network.outgoingMsg <- msg
+}
+
+func (network *Network) messageSender() {
+	for msg := range network.outgoingMsg {
+		conn, err := net.Dial("udp", msg.Target.Address)
+		if err != nil {
+			log.Printf("UDP send error: %v", err)
+			continue
+		}
+		bytes := serializeMessage(msg)
+		conn.Write(bytes)
+		conn.Close()
+		log.Printf("Message (%d) sent to %s\n", msg.RPC, msg.Target.String())
 	}
-	bytes := serializeMessage(msg)
-	conn.Write(bytes)
 }
