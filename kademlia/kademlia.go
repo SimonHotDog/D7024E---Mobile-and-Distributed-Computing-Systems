@@ -18,7 +18,7 @@ const A int = 3  //alpha, 1 is effectively no concurrency
 
 // Lookup contacts
 func (kademlia *Kademlia) LookupContact(targetID *KademliaID) []Contact {
-	candidateList := NewCandidateList(targetID)
+	candidateList := NewCandidateList(targetID, K)
 	kClosestContacts := kademlia.Routing.FindClosestContacts(targetID, K)
 	var wg sync.WaitGroup
 

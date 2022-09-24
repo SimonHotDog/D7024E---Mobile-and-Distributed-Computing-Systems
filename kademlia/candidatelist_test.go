@@ -15,7 +15,7 @@ func TestNewCandidateList(t *testing.T) {
 		targetid := NewRandomKademliaID()
 
 		// Act
-		cl := NewCandidateList(targetid)
+		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
 		// Assert
@@ -40,7 +40,7 @@ func TestCandidateExists(t *testing.T) {
 
 		targetid := NewRandomKademliaID()
 
-		cl := NewCandidateList(targetid)
+		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
 		//Act
@@ -76,7 +76,7 @@ func TestRemoveFromCandidateList(t *testing.T) {
 
 		targetid := NewRandomKademliaID()
 
-		cl := NewCandidateList(targetid)
+		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
 		//Act
@@ -101,7 +101,7 @@ func TestGetCandidateFromID(t *testing.T) {
 		}
 
 		targetid := NewRandomKademliaID()
-		cl := NewCandidateList(targetid)
+		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
 		//Act
@@ -123,7 +123,7 @@ func TestAddWhenListIsNotFull(t *testing.T) {
 		contacts = append(contacts, NewContact(NewRandomKademliaID(), ""))
 		contacts = append(contacts, NewContact(NewRandomKademliaID(), ""))
 
-		cl := NewCandidateList(targetid)
+		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
 		contactToAdd := NewContact(NewRandomKademliaID(), "")
@@ -155,7 +155,7 @@ func TestAddWhenListIsFullAndReplace(t *testing.T) {
 		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000008"), ""))
 		contacts = append(contacts, NewContact(NewKademliaID("00000000000000000000000000000000000000F0"), ""))
 
-		cl := NewCandidateList(targetid)
+		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
 		contactToAdd := NewContact(NewKademliaID("0000000000000000000000000000000000000001"), "")
@@ -187,7 +187,7 @@ func TestAddWhenListIsFullAndNotReplace(t *testing.T) {
 		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000007"), ""))
 		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000008"), ""))
 
-		cl := NewCandidateList(targetid)
+		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
 		contactToAdd := NewContact(NewKademliaID("000000000000000000000000000000000000000F"), "")
@@ -198,7 +198,7 @@ func TestAddWhenListIsFullAndNotReplace(t *testing.T) {
 
 		//Assert
 		if actual != nil {
-			t.Errorf("Expected contact %v, got %v", contactToAdd, actual.Contact)
+			t.Errorf("Expected %v, got %v", nil, actual.Contact)
 		}
 	})
 }

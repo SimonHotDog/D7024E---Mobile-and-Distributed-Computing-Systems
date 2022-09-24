@@ -5,13 +5,12 @@ import (
 	"sync"
 )
 
-const LIMIT = 20 //size of the list
-
 type CandidateList struct {
 	// Sorted list of candidates
 	candidates []Candidate
 	targetID   *KademliaID
 	lock       sync.RWMutex
+	Limit      int
 }
 
 type Candidate struct {
@@ -20,9 +19,10 @@ type Candidate struct {
 	Distance KademliaID
 }
 
-func NewCandidateList(targetID *KademliaID) *CandidateList {
+func NewCandidateList(targetID *KademliaID, candidateLimit int) *CandidateList {
 	cl := &CandidateList{
 		targetID: targetID,
+		Limit:    candidateLimit,
 	}
 
 	return cl
@@ -44,9 +44,9 @@ func (cl *CandidateList) Add(contact Contact) {
 
 	cl.lock.RLock()
 	defer cl.lock.RUnlock()
-	if len(cl.candidates) == LIMIT {
-		if contact.Less(&cl.candidates[LIMIT-1].Contact) {
-			cl.candidates[LIMIT-1] = candidate
+	if len(cl.candidates) == cl.Limit {
+		if contact.Less(&cl.candidates[cl.Limit-1].Contact) {
+			cl.candidates[cl.Limit-1] = candidate
 		}
 	} else {
 		cl.candidates = append(cl.candidates, candidate)
