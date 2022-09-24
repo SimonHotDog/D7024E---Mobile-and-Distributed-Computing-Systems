@@ -2,126 +2,109 @@ package kademlia
 
 import (
 	"sort"
+	"sync"
 )
 
-const LIMIT = 8 //size of the list
+const LIMIT = 20 //size of the list
 
 type CandidateList struct {
-	candidates [8]*Candidate //limit indicates the list limit. HARDCODED! FIX LATER!
+	// Sorted list of candidates
+	candidates []Candidate
 	targetID   *KademliaID
+	lock       sync.RWMutex
 }
 
 type Candidate struct {
-	contact           Contact //itself
-	checked           bool
-	connectedContacts *CandidateList
+	Contact  Contact
+	Checked  bool
+	Distance KademliaID
 }
 
-func (cl *CandidateList) addToCandidateList(c *Contact) {
-	if cl.candidateExists(c.ID) {
-		return
+func NewCandidateList(targetID *KademliaID) *CandidateList {
+	cl := &CandidateList{
+		targetID: targetID,
 	}
 
-	c.CalcDistance(cl.targetID)
-
-	if cl.Len() == LIMIT {
-		if c.Less(&cl.candidates[LIMIT-1].contact) {
-			cl.candidates[LIMIT-1] = &Candidate{*c, true, nil}
-		}
-	} else {
-		for i := 0; i < len(cl.candidates); i++ {
-			if cl.candidates[i] == nil {
-				cl.candidates[i] = &Candidate{*c, true, nil}
-			}
-		}
-	}
-
-	sort.Sort(cl)
-
-}
-
-func (cl *CandidateList) getCandidateFromID(id *KademliaID) *Candidate {
-	for i := 0; i < cl.Len(); i++ {
-		if cl.candidates[i].contact.ID == id {
-			return cl.candidates[i]
-		}
-	}
-
-	return nil //TODO. Is this really ok?
-}
-
-// removed candidate from candidate list
-func (cl *CandidateList) removeFromCandidateList(id *KademliaID) {
-	for i := 0; i < len(cl.candidates); i++ {
-		if (cl.candidates[i] != nil) && cl.candidates[i].contact.ID.Equals(id) {
-			cl.candidates[i] = nil
-		}
-	}
-}
-
-// Checks if candidate exists
-func (cl *CandidateList) candidateExists(id *KademliaID) bool {
-	for _, candidate := range cl.candidates {
-		if (candidate != nil) && candidate.contact.ID.Equals(id) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func NewCandidateList(targetID *KademliaID, candidates []Contact) *CandidateList {
-	cl := &CandidateList{}
-	//cl.closestCandidate = &candidates[0]
-	cl.targetID = targetID
-
-	if len(candidates) > LIMIT {
-		candidates = candidates[:LIMIT]
-	}
-
-	for i, contact := range candidates {
-		cl.candidates[i] = &Candidate{contact, false, nil}
-	}
 	return cl
 }
 
-//Below Required functions for sort interfacing
+func (cl *CandidateList) AddMultiple(contacts []Contact) {
+	for _, contact := range contacts {
+		cl.Add(contact)
+	}
+}
 
-// gets length of list
-func (cl *CandidateList) Len() int {
-	l := 0
+func (cl *CandidateList) Add(contact Contact) {
+	if cl.Exists(contact.ID) {
+		return
+	}
 
-	for _, candidate := range cl.candidates {
-		if candidate != nil {
-			l++
+	contact.CalcDistance(cl.targetID)
+	candidate := Candidate{contact, true, *contact.distance}
+
+	cl.lock.RLock()
+	defer cl.lock.RUnlock()
+	if len(cl.candidates) == LIMIT {
+		if contact.Less(&cl.candidates[LIMIT-1].Contact) {
+			cl.candidates[LIMIT-1] = candidate
+		}
+	} else {
+		cl.candidates = append(cl.candidates, candidate)
+	}
+
+	sort.Slice(cl.candidates, func(i, j int) bool {
+		return cl.candidates[i].Distance.Less(&cl.candidates[j].Distance)
+	})
+}
+
+func (cl *CandidateList) Get(id *KademliaID) *Candidate {
+	cl.lock.Lock()
+	defer cl.lock.Unlock()
+	for i := 0; i < len(cl.candidates); i++ {
+		if cl.candidates[i].Contact.ID == id {
+			return &cl.candidates[i]
 		}
 	}
-
-	return l
+	return nil
 }
 
-// Checks less contacts
-// a and b are indexes of candidates in candidate list
-func (cl *CandidateList) Less(a, b int) bool {
+func (cl *CandidateList) GetAll() []Candidate {
+	return cl.candidates
+}
 
-	//Check if either element is null
-	if cl.candidates[b] == nil {
-		return true
+// removed candidate from candidate list
+func (cl *CandidateList) Remove(id *KademliaID) {
+	cl.lock.RLock()
+	for i := 0; i < len(cl.candidates); i++ {
+		if cl.candidates[i].Contact.ID.Equals(id) {
+			cl.candidates = append(cl.candidates[:i], cl.candidates[i+1:]...)
+		}
 	}
+	cl.lock.RUnlock()
+}
 
-	if cl.candidates[a] == nil {
-		return false
+// Checks if candidate exists
+func (cl *CandidateList) Exists(id *KademliaID) bool {
+	cl.lock.Lock()
+	defer cl.lock.Unlock()
+	for _, candidate := range cl.candidates {
+		if candidate.Contact.ID.Equals(id) {
+			return true
+		}
 	}
-
-	//Call contacts Less function
-	return cl.candidates[a].contact.Less(&cl.candidates[b].contact)
+	return false
 }
 
-// Swaps 2 elements
-func (cl *CandidateList) Swap(a, b int) {
-	cl.candidates[a], cl.candidates[b] = cl.candidates[b], cl.candidates[a]
+func (cl *CandidateList) Len() int {
+	return len(cl.candidates)
 }
 
-func (cl *CandidateList) GetLimit() int {
-	return LIMIT
+func (cl *CandidateList) Check(id *KademliaID) {
+	cl.lock.RLock()
+	defer cl.lock.RUnlock()
+	for i, candidate := range cl.candidates {
+		if candidate.Contact.ID.Equals(id) {
+			cl.candidates[i].Checked = true
+		}
+	}
 }

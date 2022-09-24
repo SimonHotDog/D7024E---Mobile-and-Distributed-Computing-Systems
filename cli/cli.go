@@ -161,16 +161,17 @@ func debug_sendPing(context *kademlia.Kademlia, args string) {
 }
 
 func debug_lookupMe(context *kademlia.Kademlia, args string) {
-	contact := kademlia.NewContact(nil, args)
-	contactChannel := make(chan []kademlia.Contact)
-	go context.Network.SendFindContactMessage(&contact, context.Me.ID, contactChannel)
+	fmt.Printf("%v", context.LookupContact(context.Me.ID))
+	// contact := kademlia.NewContact(nil, args)
+	// contactChannel := make(chan []kademlia.Contact)
+	// go context.Network.SendFindContactMessage(&contact, context.Me.ID, contactChannel)
 
-	contacts := <-contactChannel
-	fmt.Printf("Recieved %d nodes close to me from %s\n", len(contacts), contact.Address)
-	for _, contact := range contacts {
-		fmt.Printf("   %s\n", contact.String())
-		context.Routing.AddContact(contact)
-	}
+	// contacts := <-contactChannel
+	// fmt.Printf("Recieved %d nodes close to me from %s\n", len(contacts), contact.Address)
+	// for _, contact := range contacts {
+	// 	fmt.Printf("   %s\n", contact.String())
+	// 	context.Routing.AddContact(contact)
+	// }
 }
 
 func debug_routingTable(context *kademlia.Kademlia) {
@@ -183,6 +184,6 @@ func debug_routingTable(context *kademlia.Kademlia) {
 }
 
 func debug_lookup(context *kademlia.Kademlia) {
-	contact := context.LookupContact(*context.Me.ID)
+	contact := context.LookupContact(context.Me.ID)
 	fmt.Println(contact)
 }

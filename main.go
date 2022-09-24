@@ -27,7 +27,7 @@ func main() {
 	context.Network = &network
 
 	go network.Listen() // TODO: Notify it is actually listening
-	go context.LookupContact(*me.ID)
+	go context.LookupContact(me.ID)
 	cli.Open(&context)
 }
 
