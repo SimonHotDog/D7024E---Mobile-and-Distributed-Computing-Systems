@@ -17,6 +17,18 @@ func MakeCounter() *Counter {
 	return c
 }
 
+// Increase counter by 1
+func (c *Counter) Increase() {
+	<-c.lock
+
+	if c.i == math.MaxInt64 {
+		c.i = 0
+	}
+	c.i++
+
+	c.lock <- struct{}{}
+}
+
 // Get next integer from counter. Will always be greater than 0
 func (c *Counter) GetNext() int64 {
 	<-c.lock
