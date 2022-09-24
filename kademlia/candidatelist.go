@@ -121,3 +121,7 @@ func (cl *CandidateList) Less(a, b int) bool {
 func (cl *CandidateList) Swap(a, b int) {
 	cl.candidates[a], cl.candidates[b] = cl.candidates[b], cl.candidates[a]
 }
+
+func (cl *CandidateList) GetLimit() int {
+	return LIMIT
+}
