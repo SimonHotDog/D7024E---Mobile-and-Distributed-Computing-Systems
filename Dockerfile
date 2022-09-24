@@ -2,7 +2,7 @@ FROM golang:1.19.1-alpine
 
 WORKDIR /app
 
-COPY go.mod *.go ./
+COPY go.mod go.sum *.go ./
 COPY kademlia/ kademlia/
 COPY cli/ cli/
 

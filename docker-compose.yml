@@ -1,32 +1,34 @@
-# See https://docs.docker.com/compose/compose-file/ for information about what
-# commands you can use in this file.
+# Start a network of 50 nodes, of which one is a bootstrap node and the rest 
+# are regular nodes that will use the bootstrap node to join the network.
 #
-# Note that you must use the `docker stack deploy` command, with any required
-# command line flags, in order to actually get any replicas started. That
-# command requires that a docker swarm is already running in order to function.
+# Use "docker compose up -d" to start the network in detached mode.
+# Use "docker compose down" to stop and remove the network.
 
 version: "3"
+name: kademlia
 services:
-  kademliaNodes:
-    image: docker-go # Make sure your Docker image has this name.
+  node:
+    image: docker-go
     stdin_open: true
     tty: true
     deploy:
       mode: replicated
       replicas: 50
-#        resources:
-#           limits:
-#              cpus: "0.1"
-#              memory: 50M
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
         window: 10s
-#    ports:
-#      - "4000:80"
+    environment:
+      - KADEMLIA_PORT=14041
+      - KADEMLIA_BOOTSTRAP_NODE=172.19.0.2:14041
+      - KADEMLIA_VERBOSE=1
     networks:
-      - kademlia_network
+      - net1
 
 networks:
-  kademlia_network:
+  net1:
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+          gateway: 172.19.0.1
