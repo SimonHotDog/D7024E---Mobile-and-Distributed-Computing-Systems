@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"math"
 	"sort"
 	"sync"
 )
@@ -20,9 +21,10 @@ type Candidate struct {
 }
 
 func NewCandidateList(targetID *KademliaID, candidateLimit int) *CandidateList {
+	// TODO: Remove candidate limit, or improve it
 	cl := &CandidateList{
 		targetID: targetID,
-		Limit:    candidateLimit,
+		Limit:    math.MaxInt,
 	}
 
 	return cl
@@ -61,7 +63,7 @@ func (cl *CandidateList) Get(id *KademliaID) *Candidate {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
 	for i := 0; i < len(cl.candidates); i++ {
-		if cl.candidates[i].Contact.ID == id {
+		if cl.candidates[i].Contact.ID.Equals(id) {
 			return &cl.candidates[i]
 		}
 	}
@@ -95,10 +97,12 @@ func (cl *CandidateList) Exists(id *KademliaID) bool {
 	return false
 }
 
+// Get length of candidate list
 func (cl *CandidateList) Len() int {
 	return len(cl.candidates)
 }
 
+// Mark candidate as checked
 func (cl *CandidateList) Check(id *KademliaID) {
 	cl.lock.RLock()
 	defer cl.lock.RUnlock()
