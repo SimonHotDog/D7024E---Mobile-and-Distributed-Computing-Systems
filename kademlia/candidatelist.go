@@ -42,7 +42,7 @@ func (cl *CandidateList) Add(contact Contact) {
 	}
 
 	contact.CalcDistance(cl.targetID)
-	candidate := Candidate{contact, true, *contact.distance}
+	candidate := Candidate{contact, false, *contact.distance}
 
 	cl.lock.RLock()
 	defer cl.lock.RUnlock()
