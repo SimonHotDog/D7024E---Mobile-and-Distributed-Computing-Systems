@@ -3,6 +3,7 @@ package kademlia
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"log"
 	"sync"
 )
@@ -76,12 +77,36 @@ func (kademlia *Kademlia) LookupData(hash string) []byte {
 	return kademlia.Data[hash]
 }
 
+// find send store message to closest nodes
 func (kademlia *Kademlia) Store(data []byte) {
+
+	hashed := Hash(data)
+	stringToByte := []byte(hashed)
+
+	contacts := kademlia.LookupContact((*KademliaID)(stringToByte))
+
+	if len(contacts) == 0 {
+		errors.New("No suitable contacts found for storage")
+	} else {
+		for contact := range contacts { // for each of the <=5 contacts found...
+			log.Println("Storing at... ", contact.ID)
+			go kademlia.Network.SendStore(&contact, targetID, channel) //send StoreLocally to each
+		}
+	}
+
+}
+
+// store data locally on node
+func (kademlia *Kademlia) StoreLocally(data []byte) {
+
+	hashed := Hash(data)
+
 	if kademlia.Data == nil {
 		kademlia.Data = make(map[string][]byte)
 	}
 
-	kademlia.Data[Hash(data)] = data
+	kademlia.Data[hashed] = data
+
 }
 
 // Join a kademlia network by through a known node
