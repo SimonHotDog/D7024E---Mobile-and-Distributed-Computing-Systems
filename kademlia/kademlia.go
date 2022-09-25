@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 )
@@ -73,26 +74,43 @@ func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Cont
 	wg.Wait()
 }
 
-func (kademlia *Kademlia) LookupData(hash string) []byte {
-	return kademlia.Data[hash]
+// send lookup message to closest nodes
+func (kademlia *Kademlia) LookupData(hash string) {
+
+	stringToByte := []byte(hash)
+
+	contacts := kademlia.LookupContact((*KademliaID)(stringToByte))
+
+	for _, contact := range contacts { // for each of the <=5 contacts found...
+		//fmt.Println(" trying to find data on node ", contact.ID)
+
+		kademlia.Network.SendLookup(&contact, hash) //send FindLocally to each
+	}
 }
 
-// find send store message to closest nodes
-func (kademlia *Kademlia) Store(data []byte) {
+// retreive data locally on node
+func (kademlia *Kademlia) LookupDataLocal(hash string) []byte {
+	result := kademlia.Data[hash]
+	return result
+}
 
+// send store message to closest nodes
+func (kademlia *Kademlia) Store(data []byte) (string, error) {
 	hashed := Hash(data)
 	stringToByte := []byte(hashed)
 
 	contacts := kademlia.LookupContact((*KademliaID)(stringToByte))
 
 	if len(contacts) == 0 {
-		errors.New("No suitable contacts found for storage")
+		err := errors.New("no suitable contacts found for storage")
+		return "", err
 	} else {
-		for contact := range contacts { // for each of the <=5 contacts found...
-			log.Println("Storing at... ", contact.ID)
-			go kademlia.Network.SendStore(&contact, targetID, channel) //send StoreLocally to each
+		for _, contact := range contacts { // for each of the <=5 contacts found...
+			fmt.Println(" storing at node", contact.ID)
+			go kademlia.Network.SendStore(&contact, data) //send StoreLocally to each
 		}
 	}
+	return hashed, nil
 
 }
 
