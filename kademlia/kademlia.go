@@ -22,11 +22,8 @@ const A int = 3  //alpha, 1 is effectively no concurrency
 func (kademlia *Kademlia) LookupContact(targetID *KademliaID) []Contact {
 	candidateList := NewCandidateList(targetID, K)
 	kClosestContacts := kademlia.Routing.FindClosestContacts(targetID, K)
-	var wg sync.WaitGroup
 
-	kademlia.lookupContactAux(targetID, kClosestContacts, candidateList, &wg)
-
-	wg.Wait()
+	kademlia.lookupContactAux(targetID, kClosestContacts, candidateList)
 
 	contacts := make([]Contact, candidateList.Len())
 	for i, candidate := range candidateList.GetAll() {
@@ -36,29 +33,43 @@ func (kademlia *Kademlia) LookupContact(targetID *KademliaID) []Contact {
 	return contacts
 }
 
-func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Contact, cl *CandidateList, wg *sync.WaitGroup) {
+func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Contact, cl *CandidateList) {
+	var wg sync.WaitGroup
+
 	for i, contact := range contacts {
 		if i > A {
 			break
 		}
-		go func(contact Contact, targetId *KademliaID, cl *CandidateList) {
-			if !cl.Exists(contact.ID) {
+		wg.Add(1)
+		go func(contact Contact, targetId *KademliaID, cl *CandidateList, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			candidate := cl.Get(contact.ID)
+			if candidate != nil && candidate.Checked {
+				// Already checked
 				return
 			}
-
-			wg.Add(1)
-			defer wg.Done()
 
 			channel := make(chan []Contact, 1)
 			go kademlia.Network.SendFindContactMessage(&contact, targetID, channel)
 			contacts := <-channel
-			cl.AddMultiple(contacts)
-
 			cl.Check(contact.ID)
 
-			kademlia.lookupContactAux(targetId, contacts, cl, wg)
-		}(contact, targetID, cl)
+			if len(contacts) == 0 {
+				// No contacts recieved
+				return
+			}
+			if contact.ID.CalcDistance(targetId).Less(contacts[0].ID.CalcDistance(targetId)) {
+				// Recieved contacts not closer than current
+				return
+			}
+
+			cl.AddMultiple(contacts)
+			kademlia.lookupContactAux(targetId, contacts, cl)
+		}(contact, targetID, cl, &wg)
 	}
+
+	wg.Wait()
 }
 
 func (kademlia *Kademlia) LookupData(hash string) []byte {
