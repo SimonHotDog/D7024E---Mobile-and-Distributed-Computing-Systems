@@ -14,8 +14,62 @@ type Kademlia struct {
 	Data    map[string][]byte
 }
 
-func (kademlia *Kademlia) LookupContact(target *Contact) {
-	// TODO
+// Hyperparameters
+const K int = 20 //k closest
+const A int = 3  //alpha, 1 is effectively no concurrency
+
+// Lookup contacts
+func (kademlia *Kademlia) LookupContact(targetID *KademliaID) []Contact {
+	candidateList := NewCandidateList(targetID, K)
+	kClosestContacts := kademlia.Routing.FindClosestContacts(targetID, K)
+
+	kademlia.lookupContactAux(targetID, kClosestContacts, candidateList)
+
+	contacts := make([]Contact, candidateList.Len())
+	for i, candidate := range candidateList.GetAll() {
+		contacts[i] = candidate.Contact
+	}
+
+	return contacts
+}
+
+func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Contact, cl *CandidateList) {
+	var wg sync.WaitGroup
+
+	for i, contact := range contacts {
+		if i > A {
+			break
+		}
+		wg.Add(1)
+		go func(contact Contact, targetId *KademliaID, cl *CandidateList, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			candidate := cl.Get(contact.ID)
+			if candidate != nil && candidate.Checked {
+				// Already checked
+				return
+			}
+
+			channel := make(chan []Contact, 1)
+			go kademlia.Network.SendFindContactMessage(&contact, targetID, channel)
+			contacts := <-channel
+			cl.Check(contact.ID)
+
+			if len(contacts) == 0 {
+				// No contacts recieved
+				return
+			}
+			if contact.ID.CalcDistance(targetId).Less(contacts[0].ID.CalcDistance(targetId)) {
+				// Recieved contacts not closer than current
+				return
+			}
+
+			cl.AddMultiple(contacts)
+			kademlia.lookupContactAux(targetId, contacts, cl)
+		}(contact, targetID, cl, &wg)
+	}
+
+	wg.Wait()
 }
 
 func (kademlia *Kademlia) LookupData(hash string) []byte {
@@ -63,10 +117,4 @@ func Hash(data []byte) string {
 	key := hex.EncodeToString(sha1[:])
 
 	return key
-}
-
-// Finds k closest nodes
-func KClosest(key string) {
-	// TODO
-	// Implement a algorithm for finding
 }

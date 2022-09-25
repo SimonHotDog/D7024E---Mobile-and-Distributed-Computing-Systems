@@ -26,8 +26,9 @@ var commands = [][]string{
 	{"stat", "Displays the status of the network."},
 	{"exit", "Exit the CLI."},
 	{"ping [address]", "DEBUG: Send a ping RPC to the target client"},
-	{"whoami [address]", "DEBUG: Lookup myself at address"},
+	{"whoami", "DEBUG: Lookup myself"},
 	{"routes", "DEBUG: Print routingtable"},
+	{"lookup", "DEBUG: Lookup"},
 }
 
 func Open(context *kademlia.Kademlia) {
@@ -157,15 +158,10 @@ func debug_sendPing(context *kademlia.Kademlia, args string) {
 }
 
 func debug_lookupMe(context *kademlia.Kademlia, args string) {
-	contact := kademlia.NewContact(nil, args)
-	contactChannel := make(chan []kademlia.Contact)
-	go context.Network.SendFindContactMessage(&contact, context.Me.ID, contactChannel)
-
-	contacts := <-contactChannel
-	fmt.Printf("Recieved %d nodes close to me from %s\n", len(contacts), contact.Address)
+	contacts := context.LookupContact(context.Me.ID)
+	fmt.Printf("Recieved %d nodes:\n", len(contacts))
 	for _, contact := range contacts {
 		fmt.Printf("   %s\n", contact.String())
-		context.Routing.AddContact(contact)
 	}
 }
 
