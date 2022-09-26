@@ -76,16 +76,14 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 		if cmd.arg == "" {
 			return "", errors.New("expected 1 argument, but got 0")
 		}
-		getObjectByHash(context, &cmd.arg)
-		return "", nil // TODO: Return object
+		return getObjectByHash(context, &cmd.arg)
 	case "help":
 		return getAvaliableCommands(), nil
 	case "put":
 		if cmd.arg == "" {
 			return "", errors.New("expected 1 argument, but got 0")
 		}
-		putObjectInStore(context, &cmd.arg)
-		return "", nil // TODO: Return hash
+		return putObjectInStore(context, &cmd.arg)
 	case "stat":
 		return "", errors.New("not implemented yet") // TODO: Should this be a thing?
 	case "ping":
@@ -103,16 +101,19 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 }
 
 func getObjectByHash(context *kademlia.Kademlia, hash *string) (string, error) {
-	//TODO: No return values yet, only print
 	fmt.Println("You asked for the object with hash", *hash)
-	context.LookupData(*hash)
+	value, contact := context.LookupData(*hash)
 	/*value := context.LookupData(*hash)
 	if value == nil {
 		return "", errors.New("data not found")
 	} else {
 		return string(value), nil
 	}*/
-	return "", nil
+	if value != nil {
+		return fmt.Sprintf("Recieved value %v from node %v", string(value), contact.String()), nil
+	} else {
+		return "", errors.New("Data not found")
+	}
 }
 
 func putObjectInStore(context *kademlia.Kademlia, content *string) (string, error) {

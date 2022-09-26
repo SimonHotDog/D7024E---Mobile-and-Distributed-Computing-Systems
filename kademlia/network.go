@@ -200,6 +200,10 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 			fmt.Println("Data: ", value, "(", string(value), ") found on node ", msg.ID)
 		}
 
+		msg.RPC = MESSAGE_VALUE
+		msg.Body = string(value)
+		network.generateReturnMessage(msg)
+		network.sendMessage(*msg)
 	case MESSAGE_PONG:
 	case MESSAGE_NODE_LIST:
 	case MESSAGE_VALUE:
@@ -267,7 +271,7 @@ func (network *Network) SendStore(contact *Contact, data []byte) {
 }
 
 // Send Lookup command to find data
-func (network *Network) SendLookup(contact *Contact, hash string) {
+func (network *Network) SendLookup(contact *Contact, hash string, value chan string) {
 	msg := NetworkMessage{
 		ID:     network.messageCounter.GetNext(),
 		RPC:    MESSAGE_RPC_FIND_VALUE,
@@ -280,6 +284,15 @@ func (network *Network) SendLookup(contact *Contact, hash string) {
 
 	defer network.waiters.Remove(fmt.Sprint(msg.ID))
 	go network.sendMessage(msg)
+
+	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
+	select {
+	case msg := <-waitchannel:
+		value <- msg.Body
+	case <-time.After(NETWORK_REQUEST_TIMEOUT):
+		value <- ""
+		log.Printf("Ping timeout: %s\n", contact.String())
+	}
 }
 
 func (network *Network) messageSender() {
