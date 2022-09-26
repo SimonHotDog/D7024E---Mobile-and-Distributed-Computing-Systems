@@ -185,7 +185,7 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		network.generateReturnMessage(msg)
 		network.sendMessage(*msg)
 	case MESSAGE_RPC_STORE:
-		// TODO: Implement RPC
+		network.Kademlia.StoreLocally(msg.BodyDigest)
 	case MESSAGE_RPC_FIND_NODE:
 		contactId := NewKademliaID(msg.Body)
 		nodes := network.Kademlia.Routing.FindClosestContacts(contactId, 20) // TODO: Get count value (20) from some parameter
@@ -195,12 +195,17 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		network.generateReturnMessage(msg)
 		network.sendMessage(*msg)
 	case MESSAGE_RPC_FIND_VALUE:
-		// TODO: Implement RPC
+		value := network.Kademlia.LookupDataLocal(msg.Body)
+		if !(len(value) == 0) {
+			fmt.Println("Data: ", value, "(", string(value), ") found on node ", msg.ID)
+		}
+
 	case MESSAGE_PONG:
 	case MESSAGE_NODE_LIST:
 	case MESSAGE_VALUE:
 		// TODO: Implement message response
 	}
+	return
 }
 
 // Get IP-address of this computer
@@ -243,6 +248,38 @@ func (network *Network) generateReturnMessage(msg *NetworkMessage) {
 // Send network message
 func (network *Network) sendMessage(msg NetworkMessage) {
 	network.outgoingMsg <- msg
+}
+
+// Send a store command to store data
+func (network *Network) SendStore(contact *Contact, data []byte) {
+	msg := NetworkMessage{
+		ID:         network.messageCounter.GetNext(),
+		RPC:        MESSAGE_RPC_STORE,
+		Sender:     network.Kademlia.Me,
+		Target:     contact,
+		BodyDigest: data,
+	}
+
+	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
+
+	defer network.waiters.Remove(fmt.Sprint(msg.ID))
+	go network.sendMessage(msg)
+}
+
+// Send Lookup command to find data
+func (network *Network) SendLookup(contact *Contact, hash string) {
+	msg := NetworkMessage{
+		ID:     network.messageCounter.GetNext(),
+		RPC:    MESSAGE_RPC_FIND_VALUE,
+		Sender: network.Kademlia.Me,
+		Target: contact,
+		Body:   hash,
+	}
+
+	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
+
+	defer network.waiters.Remove(fmt.Sprint(msg.ID))
+	go network.sendMessage(msg)
 }
 
 func (network *Network) messageSender() {

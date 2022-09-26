@@ -103,20 +103,29 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 }
 
 func getObjectByHash(context *kademlia.Kademlia, hash *string) (string, error) {
-	// TODO: Return error if object not found
-	// TODO: Return the requested object if found
+	//TODO: No return values yet, only print
 	fmt.Println("You asked for the object with hash", *hash)
 	context.LookupData(*hash)
+	/*value := context.LookupData(*hash)
+	if value == nil {
+		return "", errors.New("data not found")
+	} else {
+		return string(value), nil
+	}*/
 	return "", nil
 }
 
 func putObjectInStore(context *kademlia.Kademlia, content *string) (string, error) {
-	// TODO: Return error if object could not be stored
-	// TODO: Return the hash of the data
 	fmt.Println("You asked to put the object", *content)
 	dataToSend := []byte(*content)
-	context.Store(dataToSend)
-	return "", nil
+
+	value, error := context.Store(dataToSend)
+
+	if error == nil {
+		return value, nil
+	} else {
+		return "", error
+	}
 }
 
 func exitApplication() {
