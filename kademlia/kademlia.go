@@ -6,13 +6,15 @@ import (
 	"errors"
 	"log"
 	"sync"
+
+	cmap "github.com/orcaman/concurrent-map/v2"
 )
 
 type Kademlia struct {
-	Routing *RoutingTable
-	Me      *Contact
-	Network *Network
-	Data    map[string][]byte
+	Routing   *RoutingTable
+	Me        *Contact
+	Network   *Network
+	DataStore cmap.ConcurrentMap[[]byte]
 }
 
 // Hyperparameters
@@ -86,7 +88,7 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *Contact) {
 		//kademlia.Network.SendLookup(&contact, hash) //send FindLocally to each
 
 		valuechannel := make(chan string, 1)
-		go kademlia.Network.SendLookup(&contact, hash, valuechannel) //send FindLocally to each
+		go kademlia.Network.SendLookupMessage(&contact, hash, valuechannel) //send FindLocally to each
 		value := <-valuechannel
 		//fmt.Printf("Recieved value %v from node %v", value, contact.String())
 		if value != "" {
@@ -95,12 +97,6 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *Contact) {
 	}
 
 	return nil, nil
-}
-
-// retreive data locally on node
-func (kademlia *Kademlia) LookupDataLocal(hash string) []byte {
-	result := kademlia.Data[hash]
-	return result
 }
 
 // send store message to closest nodes
@@ -115,24 +111,15 @@ func (kademlia *Kademlia) Store(data []byte) (string, error) {
 		return "", err
 	} else {
 		for _, contact := range contacts { // for each of the <=5 contacts found...
-			log.Println("Storing message with hash %v at node", hashed, contact.ID)
-			go kademlia.Network.SendStore(&contact, data) //send StoreLocally to each
+			log.Printf("Storing message with hash %s at node %s\n", hashed, contact.String())
+			// TODO: Make this concurrent
+			ok := kademlia.Network.SendStoreMessage(&contact, hashed, data) //send StoreLocally to each
+			if !ok {
+				log.Println("Could not store message at node " + contact.String())
+			}
 		}
 	}
 	return hashed, nil
-
-}
-
-// store data locally on node
-func (kademlia *Kademlia) StoreLocally(data []byte) {
-
-	hashed := Hash(data)
-
-	if kademlia.Data == nil {
-		kademlia.Data = make(map[string][]byte)
-	}
-
-	kademlia.Data[hashed] = data
 
 }
 

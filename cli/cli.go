@@ -101,31 +101,25 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 }
 
 func getObjectByHash(context *kademlia.Kademlia, hash *string) (string, error) {
-	fmt.Println("You asked for the object with hash", *hash)
-	value, contact := context.LookupData(*hash)
-	/*value := context.LookupData(*hash)
-	if value == nil {
-		return "", errors.New("data not found")
-	} else {
-		return string(value), nil
-	}*/
+	cleanHash := removeDoubleQuotes(*hash)
+	value, _ := context.LookupData(cleanHash)
 	if value != nil {
-		return fmt.Sprintf("Recieved value %v from node %v", string(value), contact.String()), nil
+		return string(value), nil
 	} else {
-		return "", errors.New("Data not found")
+		return "", errors.New("data not found")
 	}
 }
 
 func putObjectInStore(context *kademlia.Kademlia, content *string) (string, error) {
-	fmt.Println("You asked to put the object", *content)
-	dataToSend := []byte(*content)
+	cleanContent := removeDoubleQuotes(*content)
+	dataToSend := []byte(cleanContent)
 
-	value, error := context.Store(dataToSend)
+	value, err := context.Store(dataToSend)
 
-	if error == nil {
+	if err == nil {
 		return value, nil
 	} else {
-		return "", error
+		return "", err
 	}
 }
 
@@ -153,6 +147,13 @@ func getAvaliableCommands() string {
 	}
 
 	return sb.String()
+}
+
+func removeDoubleQuotes(str string) string {
+	if len(str) >= 2 && str[0] == '"' && str[len(str)-1] == '"' {
+		str = str[1 : len(str)-1]
+	}
+	return str
 }
 
 func debug_sendPing(context *kademlia.Kademlia, args string) {

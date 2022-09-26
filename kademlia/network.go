@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"time"
 
 	cmap "github.com/orcaman/concurrent-map/v2"
@@ -25,8 +26,9 @@ const (
 )
 
 const (
-	NETWORK_INCOMING_BUFFER = 8192
-	NETWORK_REQUEST_TIMEOUT = 2 * time.Second
+	NETWORK_INCOMING_BUFFER        = 8192
+	NETWORK_REQUEST_TIMEOUT        = 2 * time.Second
+	NETWORK_REQUEST_TIMEOUT_STRING = "::timeout::"
 )
 
 type Network struct {
@@ -45,7 +47,7 @@ type NetworkMessage struct {
 	RPC        int
 	Sender     *Contact
 	Target     *Contact
-	BodyDigest []byte
+	BodyDigest string
 	Body       string
 	Contacts   []Contact
 }
@@ -185,7 +187,16 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		network.generateReturnMessage(msg)
 		network.sendMessage(*msg)
 	case MESSAGE_RPC_STORE:
-		network.Kademlia.StoreLocally(msg.BodyDigest)
+		network.Kademlia.DataStore.Set(msg.BodyDigest, []byte(msg.Body))
+		_, ok := network.Kademlia.DataStore.Get(msg.BodyDigest)
+		if ok {
+			msg.Body = "1"
+		} else {
+			msg.Body = "0"
+		}
+		msg.RPC = MESSAGE_VALUE
+		network.generateReturnMessage(msg)
+		network.sendMessage(*msg)
 	case MESSAGE_RPC_FIND_NODE:
 		contactId := NewKademliaID(msg.Body)
 		nodes := network.Kademlia.Routing.FindClosestContacts(contactId, 20) // TODO: Get count value (20) from some parameter
@@ -195,9 +206,11 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		network.generateReturnMessage(msg)
 		network.sendMessage(*msg)
 	case MESSAGE_RPC_FIND_VALUE:
-		value := network.Kademlia.LookupDataLocal(msg.Body)
-		if !(len(value) == 0) {
-			fmt.Println("Data: ", value, "(", string(value), ") found on node ", msg.ID)
+		value, exists := network.Kademlia.DataStore.Get(msg.BodyDigest)
+		if exists {
+			log.Printf("Data: %v (%s) found on node %s\n", value, string(value), msg.Target.String())
+		} else {
+			log.Printf("Data not found on node %s\n", msg.Target.String())
 		}
 
 		msg.RPC = MESSAGE_VALUE
@@ -209,7 +222,6 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 	case MESSAGE_VALUE:
 		// TODO: Implement message response
 	}
-	return
 }
 
 // Get IP-address of this computer
@@ -255,29 +267,45 @@ func (network *Network) sendMessage(msg NetworkMessage) {
 }
 
 // Send a store command to store data
-func (network *Network) SendStore(contact *Contact, data []byte) {
+//
+// If store is succesful, success will be true. Otherwise, false.
+func (network *Network) SendStoreMessage(contact *Contact, hash string, data []byte) (succes bool) {
 	msg := NetworkMessage{
 		ID:         network.messageCounter.GetNext(),
 		RPC:        MESSAGE_RPC_STORE,
 		Sender:     network.Kademlia.Me,
 		Target:     contact,
-		BodyDigest: data,
+		BodyDigest: hash,
+		Body:       string(data),
 	}
 
 	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
 
 	defer network.waiters.Remove(fmt.Sprint(msg.ID))
 	go network.sendMessage(msg)
+
+	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
+	select {
+	case msg := <-waitchannel:
+		succes, _ := strconv.ParseBool(msg.Body)
+		return succes
+	case <-time.After(NETWORK_REQUEST_TIMEOUT):
+		log.Printf("Store timeout: %s\n", contact.String())
+		return false
+	}
 }
 
 // Send Lookup command to find data
-func (network *Network) SendLookup(contact *Contact, hash string, value chan string) {
+//
+// If lookup is succesful, the found value will be added to the value channel.
+// Otherwise, a "::timeout::" string-value will be added to the value channel.
+func (network *Network) SendLookupMessage(contact *Contact, hash string, value chan string) {
 	msg := NetworkMessage{
-		ID:     network.messageCounter.GetNext(),
-		RPC:    MESSAGE_RPC_FIND_VALUE,
-		Sender: network.Kademlia.Me,
-		Target: contact,
-		Body:   hash,
+		ID:         network.messageCounter.GetNext(),
+		RPC:        MESSAGE_RPC_FIND_VALUE,
+		Sender:     network.Kademlia.Me,
+		Target:     contact,
+		BodyDigest: hash,
 	}
 
 	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
@@ -290,7 +318,7 @@ func (network *Network) SendLookup(contact *Contact, hash string, value chan str
 	case msg := <-waitchannel:
 		value <- msg.Body
 	case <-time.After(NETWORK_REQUEST_TIMEOUT):
-		value <- ""
+		value <- NETWORK_REQUEST_TIMEOUT_STRING
 		log.Printf("Ping timeout: %s\n", contact.String())
 	}
 }
