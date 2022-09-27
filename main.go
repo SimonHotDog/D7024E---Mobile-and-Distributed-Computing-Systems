@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	cmap "github.com/orcaman/concurrent-map/v2"
 )
 
 func init() {
@@ -25,7 +27,7 @@ func main() {
 	bootstrap := kademlia.NewContact(nil, *bootstrapAddress)
 	myAddress := fmt.Sprintf("%s:%d", kademlia.GetOutboundIP(), *port)
 	me := kademlia.NewContact(kademlia.NewRandomKademliaID(), myAddress)
-	context := kademlia.Kademlia{Me: &me, Routing: kademlia.NewRoutingTable(me)}
+	context := kademlia.Kademlia{Me: &me, Routing: kademlia.NewRoutingTable(me), DataStore: cmap.New[[]byte]()}
 	network := kademlia.CreateNewNetwork(&context, *port)
 
 	context.Network = &network
