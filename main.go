@@ -29,13 +29,14 @@ func main() {
 	me := kademlia.NewContact(kademlia.NewRandomKademliaID(), myAddress)
 	context := kademlia.Kademlia{Me: &me, Routing: kademlia.NewRoutingTable(me), DataStore: cmap.New[[]byte]()}
 	network := kademlia.CreateNewNetwork(&context, *port)
+	cli := cli.NewCli(os.Stdout, os.Stdin, &context)
 
 	context.Network = &network
 
 	go network.Listen() // TODO: Notify it is actually listening
 	time.Sleep(1 * time.Second)
 	go context.JoinNetwork(&bootstrap)
-	cli.Open(&context)
+	cli.Open(true)
 }
 
 func retriveProgramParameters() (port *int, bootstrapNode *string, verbose *bool) {
