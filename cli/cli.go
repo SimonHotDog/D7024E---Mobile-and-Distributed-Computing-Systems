@@ -76,16 +76,14 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 		if cmd.arg == "" {
 			return "", errors.New("expected 1 argument, but got 0")
 		}
-		getObjectByHash(context, &cmd.arg)
-		return "", nil // TODO: Return object
+		return getObjectByHash(context, &cmd.arg)
 	case "help":
 		return getAvaliableCommands(), nil
 	case "put":
 		if cmd.arg == "" {
 			return "", errors.New("expected 1 argument, but got 0")
 		}
-		putObjectInStore(context, &cmd.arg)
-		return "", nil // TODO: Return hash
+		return putObjectInStore(context, &cmd.arg)
 	case "stat":
 		return "", errors.New("not implemented yet") // TODO: Should this be a thing?
 	case "ping":
@@ -103,28 +101,25 @@ func performCommand(context *kademlia.Kademlia, cmd *command) (string, error) {
 }
 
 func getObjectByHash(context *kademlia.Kademlia, hash *string) (string, error) {
-	//TODO: No return values yet, only print
-	fmt.Println("You asked for the object with hash", *hash)
-	context.LookupData(*hash)
-	/*value := context.LookupData(*hash)
-	if value == nil {
-		return "", errors.New("data not found")
-	} else {
+	cleanHash := removeDoubleQuotes(*hash)
+	value, _ := context.LookupData(cleanHash)
+	if value != nil {
 		return string(value), nil
-	}*/
-	return "", nil
+	} else {
+		return "", errors.New("data not found")
+	}
 }
 
 func putObjectInStore(context *kademlia.Kademlia, content *string) (string, error) {
-	fmt.Println("You asked to put the object", *content)
-	dataToSend := []byte(*content)
+	cleanContent := removeDoubleQuotes(*content)
+	dataToSend := []byte(cleanContent)
 
-	value, error := context.Store(dataToSend)
+	value, err := context.Store(dataToSend)
 
-	if error == nil {
+	if err == nil {
 		return value, nil
 	} else {
-		return "", error
+		return "", err
 	}
 }
 
@@ -152,6 +147,13 @@ func getAvaliableCommands() string {
 	}
 
 	return sb.String()
+}
+
+func removeDoubleQuotes(str string) string {
+	if len(str) >= 2 && str[0] == '"' && str[len(str)-1] == '"' {
+		str = str[1 : len(str)-1]
+	}
+	return str
 }
 
 func debug_sendPing(context *kademlia.Kademlia, args string) {
