@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"d7024e/kademlia/network/routing"
 	"testing"
 )
 
@@ -8,11 +9,11 @@ func TestNewCandidateList(t *testing.T) {
 	testname := "Create new CandidateList"
 	t.Run(testname, func(t *testing.T) {
 		// Arrange
-		contacts := make([]Contact, 10)
+		contacts := make([]routing.Contact, 10)
 		for i := 0; i < len(contacts); i++ {
-			contacts[i] = NewContact(NewRandomKademliaID(), "")
+			contacts[i] = routing.NewContact(routing.NewRandomKademliaID(), "")
 		}
-		targetid := NewRandomKademliaID()
+		targetid := routing.NewRandomKademliaID()
 
 		// Act
 		cl := NewCandidateList(targetid, 8)
@@ -29,16 +30,16 @@ func TestCandidateExists(t *testing.T) {
 	testname := "Check if candidate exists in candidatelist"
 	t.Run(testname, func(t *testing.T) {
 		//arrange
-		contacts := make([]Contact, 5)
-		ids := make([]*KademliaID, 5)
+		contacts := make([]routing.Contact, 5)
+		ids := make([]*routing.KademliaID, 5)
 
 		for i := 0; i < len(contacts); i++ {
-			x := NewRandomKademliaID()
-			contacts[i] = NewContact(x, "")
+			x := routing.NewRandomKademliaID()
+			contacts[i] = routing.NewContact(x, "")
 			ids[i] = x
 		}
 
-		targetid := NewRandomKademliaID()
+		targetid := routing.NewRandomKademliaID()
 
 		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
@@ -51,7 +52,7 @@ func TestCandidateExists(t *testing.T) {
 			t.Errorf("Expected targetid %v, got %v", true, actual)
 		}
 
-		x := NewRandomKademliaID()
+		x := routing.NewRandomKademliaID()
 		actual2 := cl.Exists(x)
 
 		if actual2 != false {
@@ -65,16 +66,16 @@ func TestRemoveFromCandidateList(t *testing.T) {
 	testname := "Remove from candidate list"
 	t.Run(testname, func(t *testing.T) {
 		//Arrange
-		contacts := make([]Contact, 6)
-		ids := make([]*KademliaID, 6)
+		contacts := make([]routing.Contact, 6)
+		ids := make([]*routing.KademliaID, 6)
 
 		for i := 0; i < len(contacts); i++ {
-			x := NewRandomKademliaID()
-			contacts[i] = NewContact(x, "")
+			x := routing.NewRandomKademliaID()
+			contacts[i] = routing.NewContact(x, "")
 			ids[i] = x
 		}
 
-		targetid := NewRandomKademliaID()
+		targetid := routing.NewRandomKademliaID()
 
 		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
@@ -96,15 +97,15 @@ func TestGetCandidateFromID(t *testing.T) {
 	t.Run(testname, func(t *testing.T) {
 		//Arrange
 		wantedId := "F000000000000000000000000000000000000000"
-		wamtedContact := NewContact(NewKademliaID(wantedId), "")
-		targetid := NewRandomKademliaID()
+		wamtedContact := routing.NewContact(routing.NewKademliaID(wantedId), "")
+		targetid := routing.NewRandomKademliaID()
 		cl := NewCandidateList(targetid, 8)
-		cl.Add(NewContact(NewKademliaID("0000000000000000000000000000000000000001"), ""))
-		cl.Add(NewContact(NewKademliaID("0000000000000000000000000000000000000002"), ""))
+		cl.Add(routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000001"), ""))
+		cl.Add(routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), ""))
 		cl.Add(wamtedContact)
 
 		//Act
-		actual := cl.Get(NewKademliaID(wantedId))
+		actual := cl.Get(routing.NewKademliaID(wantedId))
 		if actual == nil {
 			t.Errorf("Expected a candidate, got %v", actual)
 		}
@@ -120,15 +121,15 @@ func TestAddWhenListIsNotFull(t *testing.T) {
 	testname := "Add candidate when list is empty"
 	t.Run(testname, func(t *testing.T) {
 		//Arrange
-		var contacts []Contact
-		targetid := NewRandomKademliaID()
-		contacts = append(contacts, NewContact(NewRandomKademliaID(), ""))
-		contacts = append(contacts, NewContact(NewRandomKademliaID(), ""))
+		var contacts []routing.Contact
+		targetid := routing.NewRandomKademliaID()
+		contacts = append(contacts, routing.NewContact(routing.NewRandomKademliaID(), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewRandomKademliaID(), ""))
 
 		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
-		contactToAdd := NewContact(NewRandomKademliaID(), "")
+		contactToAdd := routing.NewContact(routing.NewRandomKademliaID(), "")
 
 		//Act
 		cl.Add(contactToAdd)
@@ -145,22 +146,22 @@ func TestAddWhenListIsFullAndReplace(t *testing.T) {
 	testname := "Add candidate when list is full and no replace"
 	t.Run(testname, func(t *testing.T) {
 		//Arrange
-		var contacts []Contact
-		targetid := NewKademliaID("0000000000000000000000000000000000000000")
+		var contacts []routing.Contact
+		targetid := routing.NewKademliaID("0000000000000000000000000000000000000000")
 
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000002"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000003"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000004"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000005"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000006"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000007"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000008"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("00000000000000000000000000000000000000F0"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000003"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000004"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000005"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000006"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000007"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000008"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("00000000000000000000000000000000000000F0"), ""))
 
 		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
-		contactToAdd := NewContact(NewKademliaID("0000000000000000000000000000000000000001"), "")
+		contactToAdd := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000001"), "")
 
 		//Act
 		cl.Add(contactToAdd)
@@ -179,22 +180,22 @@ func TestAddWhenListIsFullAndNotReplace(t *testing.T) { // Disabled
 		t.Skip()
 
 		//Arrange
-		var contacts []Contact
-		targetid := NewKademliaID("0000000000000000000000000000000000000000")
+		var contacts []routing.Contact
+		targetid := routing.NewKademliaID("0000000000000000000000000000000000000000")
 
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000001"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000002"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000003"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000004"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000005"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000006"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000007"), ""))
-		contacts = append(contacts, NewContact(NewKademliaID("0000000000000000000000000000000000000008"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000001"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000003"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000004"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000005"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000006"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000007"), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000008"), ""))
 
 		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
-		contactToAdd := NewContact(NewKademliaID("000000000000000000000000000000000000000F"), "")
+		contactToAdd := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000F"), "")
 
 		//Act
 		cl.Add(contactToAdd)
@@ -212,15 +213,15 @@ func TestCheckedStatusWhenAddDuplicate(t *testing.T) {
 	t.Run(testname, func(t *testing.T) {
 		//Arrange
 		expected := true
-		var contacts []Contact
-		targetid := NewRandomKademliaID()
-		contacts = append(contacts, NewContact(NewRandomKademliaID(), ""))
-		contacts = append(contacts, NewContact(NewRandomKademliaID(), ""))
+		var contacts []routing.Contact
+		targetid := routing.NewRandomKademliaID()
+		contacts = append(contacts, routing.NewContact(routing.NewRandomKademliaID(), ""))
+		contacts = append(contacts, routing.NewContact(routing.NewRandomKademliaID(), ""))
 
 		cl := NewCandidateList(targetid, 8)
 		cl.AddMultiple(contacts)
 
-		contactToAdd := NewContact(NewRandomKademliaID(), "")
+		contactToAdd := routing.NewContact(routing.NewRandomKademliaID(), "")
 
 		//Act
 		cl.Add(contactToAdd)

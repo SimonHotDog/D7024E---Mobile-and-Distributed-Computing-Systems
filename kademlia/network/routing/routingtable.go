@@ -1,4 +1,4 @@
-package kademlia
+package routing
 
 const bucketSize = 20
 

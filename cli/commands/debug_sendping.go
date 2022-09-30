@@ -1,11 +1,15 @@
 package commands
 
-import "d7024e/kademlia"
+import (
+	"d7024e/kademlia"
+	"d7024e/kademlia/network/routing"
+	"d7024e/kademlia/network/rpc"
+)
 
 func Debug_sendPing(context *kademlia.Kademlia, args string) (string, error) {
-	contact := kademlia.Contact{Address: args, ID: nil}
+	contact := routing.Contact{Address: args, ID: nil}
 	alive := make(chan bool)
-	go context.Network.SendPingMessage(&contact, alive)
+	go rpc.SendPingMessage(context.Network, &contact, alive)
 
 	if <-alive {
 		return "Node is alive", nil

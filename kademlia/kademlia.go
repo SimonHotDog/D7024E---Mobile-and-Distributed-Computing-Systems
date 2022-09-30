@@ -1,8 +1,10 @@
 package kademlia
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
+	"d7024e/kademlia/network"
+	"d7024e/kademlia/network/routing"
+	"d7024e/kademlia/network/rpc"
+	"d7024e/util"
 	"errors"
 	"log"
 	"sync"
@@ -11,10 +13,9 @@ import (
 )
 
 type Kademlia struct {
-	Routing   *RoutingTable
-	Me        *Contact
-	Network   *Network
-	DataStore cmap.ConcurrentMap[[]byte]
+	Me        *routing.Contact
+	Network   *network.Network
+	DataStore *cmap.ConcurrentMap[[]byte]
 }
 
 // Hyperparameters
@@ -22,13 +23,13 @@ const K int = 20 //k closest
 const A int = 3  //alpha, 1 is effectively no concurrency
 
 // Lookup contacts
-func (kademlia *Kademlia) LookupContact(targetID *KademliaID) []Contact {
+func (kademlia *Kademlia) LookupContact(targetID *routing.KademliaID) []routing.Contact {
 	candidateList := NewCandidateList(targetID, K)
-	kClosestContacts := kademlia.Routing.FindClosestContacts(targetID, K)
+	kClosestContacts := kademlia.Network.Routingtable.FindClosestContacts(targetID, K)
 
 	kademlia.lookupContactAux(targetID, kClosestContacts, candidateList)
 
-	contacts := make([]Contact, candidateList.Len())
+	contacts := make([]routing.Contact, candidateList.Len())
 	for i, candidate := range candidateList.GetAll() {
 		contacts[i] = candidate.Contact
 	}
@@ -36,7 +37,7 @@ func (kademlia *Kademlia) LookupContact(targetID *KademliaID) []Contact {
 	return contacts
 }
 
-func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Contact, cl *CandidateList) {
+func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contacts []routing.Contact, cl *CandidateList) {
 	var wg sync.WaitGroup
 
 	for i, contact := range contacts {
@@ -44,7 +45,7 @@ func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Cont
 			break
 		}
 		wg.Add(1)
-		go func(contact Contact, targetId *KademliaID, cl *CandidateList, wg *sync.WaitGroup) {
+		go func(contact routing.Contact, targetId *routing.KademliaID, cl *CandidateList, wg *sync.WaitGroup) {
 			defer wg.Done()
 
 			candidate := cl.Get(contact.ID)
@@ -53,8 +54,8 @@ func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Cont
 				return
 			}
 
-			channel := make(chan []Contact, 1)
-			go kademlia.Network.SendFindContactMessage(&contact, targetID, channel)
+			channel := make(chan []routing.Contact, 1)
+			go rpc.SendFindContactMessage(kademlia.Network, &contact, targetID, channel)
 			contacts := <-channel
 			cl.Check(contact.ID)
 
@@ -76,11 +77,11 @@ func (kademlia *Kademlia) lookupContactAux(targetID *KademliaID, contacts []Cont
 }
 
 // send lookup message to closest nodes
-func (kademlia *Kademlia) LookupData(hash string) ([]byte, *Contact) {
+func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
 
 	stringToByte := []byte(hash)
 
-	contacts := kademlia.LookupContact((*KademliaID)(stringToByte))
+	contacts := kademlia.LookupContact((*routing.KademliaID)(stringToByte))
 
 	for _, contact := range contacts { // for each of the <=5 contacts found...
 		//fmt.Println(" trying to find data on node ", contact.ID)
@@ -88,7 +89,7 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *Contact) {
 		//kademlia.Network.SendLookup(&contact, hash) //send FindLocally to each
 
 		valuechannel := make(chan string, 1)
-		go kademlia.Network.SendLookupMessage(&contact, hash, valuechannel) //send FindLocally to each
+		go rpc.SendLookupMessage(kademlia.Network, &contact, hash, valuechannel) //send FindLocally to each
 		value := <-valuechannel
 		//fmt.Printf("Recieved value %v from node %v", value, contact.String())
 		if value != "" {
@@ -101,10 +102,10 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *Contact) {
 
 // send store message to closest nodes
 func (kademlia *Kademlia) Store(data []byte) (string, error) {
-	hashed := Hash(data)
+	hashed := util.Hash(data)
 	stringToByte := []byte(hashed)
 
-	contacts := kademlia.LookupContact((*KademliaID)(stringToByte))
+	contacts := kademlia.LookupContact((*routing.KademliaID)(stringToByte))
 
 	if len(contacts) == 0 {
 		err := errors.New("no suitable contacts found for storage")
@@ -113,7 +114,7 @@ func (kademlia *Kademlia) Store(data []byte) (string, error) {
 		for _, contact := range contacts { // for each of the <=5 contacts found...
 			log.Printf("Storing message with hash %s at node %s\n", hashed, contact.String())
 			// TODO: Make this concurrent
-			ok := kademlia.Network.SendStoreMessage(&contact, hashed, data) //send StoreLocally to each
+			ok := rpc.SendStoreMessage(kademlia.Network, &contact, hashed, data) //send StoreLocally to each
 			if !ok {
 				log.Println("Could not store message at node " + contact.String())
 			}
@@ -124,22 +125,22 @@ func (kademlia *Kademlia) Store(data []byte) (string, error) {
 }
 
 // Join a kademlia network by through a known node
-func (kademlia *Kademlia) JoinNetwork(knownNode *Contact) {
+func (kademlia *Kademlia) JoinNetwork(knownNode *routing.Contact) {
 	log.Printf("Joining network via %v...", knownNode)
-	repononseChannel := make(chan []Contact)
-	go kademlia.Network.SendFindContactMessage(knownNode, kademlia.Me.ID, repononseChannel)
+	repononseChannel := make(chan []routing.Contact)
+	go rpc.SendFindContactMessage(kademlia.Network, knownNode, kademlia.Me.ID, repononseChannel)
 
 	// Ping all recieved contacts and add them to routing-table if they respond
 	contacts := <-repononseChannel
 	var wg sync.WaitGroup
-	c := MakeCounter()
+	c := util.MakeCounter()
 	for _, contact := range contacts {
 		wg.Add(1)
-		go func(contact Contact) {
+		go func(contact routing.Contact) {
 			aliveChannel := make(chan bool)
-			go kademlia.Network.SendPingMessage(&contact, aliveChannel)
+			go rpc.SendPingMessage(kademlia.Network, &contact, aliveChannel)
 			if <-aliveChannel {
-				kademlia.Routing.AddContact(contact)
+				kademlia.Network.Routingtable.AddContact(contact)
 				c.Increase()
 			}
 			wg.Done()
@@ -148,12 +149,4 @@ func (kademlia *Kademlia) JoinNetwork(knownNode *Contact) {
 
 	wg.Wait()
 	log.Printf("Joined network and recieved %d (%d alive) nodes close to me from %v\n", len(contacts), c.GetNext()-1, knownNode.Address)
-}
-
-// Hashes data and returns key
-func Hash(data []byte) string {
-	sha1 := sha1.Sum([]byte(data))
-	key := hex.EncodeToString(sha1[:])
-
-	return key
 }

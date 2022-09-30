@@ -3,8 +3,9 @@ package main
 import (
 	"d7024e/cli"
 	"d7024e/kademlia"
+	"d7024e/kademlia/network"
+	"d7024e/kademlia/network/routing"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -24,14 +25,11 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
-	bootstrap := kademlia.NewContact(nil, *bootstrapAddress)
-	myAddress := fmt.Sprintf("%s:%d", kademlia.GetOutboundIP(), *port)
-	me := kademlia.NewContact(kademlia.NewRandomKademliaID(), myAddress)
-	context := kademlia.Kademlia{Me: &me, Routing: kademlia.NewRoutingTable(me), DataStore: cmap.New[[]byte]()}
-	network := kademlia.CreateNewNetwork(&context, *port)
+	datastore := cmap.New[[]byte]()
+	bootstrap := routing.NewContact(nil, *bootstrapAddress)
+	network, me := network.NewNetwork(*port, &datastore)
+	context := kademlia.Kademlia{Me: me, DataStore: &datastore, Network: network}
 	cli := cli.NewCli(os.Stdout, os.Stdin, &context)
-
-	context.Network = &network
 
 	go network.Listen() // TODO: Notify it is actually listening
 	time.Sleep(1 * time.Second)
