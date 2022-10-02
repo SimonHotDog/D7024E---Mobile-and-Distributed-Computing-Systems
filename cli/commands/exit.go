@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func ExitApplication(context *kademlia.Kademlia, args string) (string, error) {
+func ExitApplication(context kademlia.IKademlia, args string) (string, error) {
 	fmt.Println("Goodbye!")
 	os.Exit(0)
 	return "", nil

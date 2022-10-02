@@ -1,11 +1,12 @@
-package kademlia
+package network
 
 import (
+	"d7024e/kademlia/network/routing"
+	"d7024e/util"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"time"
 
 	cmap "github.com/orcaman/concurrent-map/v2"
@@ -31,12 +32,65 @@ const (
 	NETWORK_REQUEST_TIMEOUT_STRING = "::timeout::"
 )
 
+type INetwork interface {
+	GetMe() *routing.Contact
+	GetRoutingTable() routing.IRoutingTable
+	GetDatastore() *cmap.ConcurrentMap[[]byte]
+
+	// Create a new network instance.
+	//
+	// Parameters:
+	//
+	//	port: The port to listen on.
+	//	datastore: The datastore to use.
+	//
+	// Returns:
+	//
+	//	A new network instance and a contact that will be used when communicating
+	//	with other nodes.
+	NewNetworkMessage(
+		rpc int,
+		sender *routing.Contact,
+		target *routing.Contact,
+		bodyDigest string,
+		body string,
+		contacts []routing.Contact,
+	) *NetworkMessage
+
+	// Listen for incoming UDP network messages.
+	Listen()
+
+	// Stop listening for incoming UDP network messages.
+	StopListen()
+
+	// Send network message and wait on response.
+	//
+	// If the contact responds, the response will be returned and `timeout` be false.
+	//
+	// Otherwise, after time to respond exceeds `network.NETWORK_REQUEST_TIMEOUT`,
+	// timeout occured and `timeout` will be true.
+	//
+	// Parameters:
+	//
+	//	msg: The message to send
+	SendMessageWithResponse(msg NetworkMessage) (response NetworkMessage, timeout bool)
+
+	// Send network message and don't wait for response
+	// Parameters:
+	//
+	//	msg: The message to send
+	SendMessage(msg NetworkMessage)
+}
+
 type Network struct {
-	Kademlia           *Kademlia
+	me           *routing.Contact
+	routingtable routing.IRoutingTable
+	datastore    *cmap.ConcurrentMap[[]byte]
+
 	incomingData       chan []byte
 	outgoingMsg        chan NetworkMessage
 	waiters            cmap.ConcurrentMap[chan NetworkMessage]
-	messageCounter     *Counter
+	messageCounter     *util.Counter
 	port               int
 	quitListenSig      chan struct{}
 	incomingDataSocket *net.UDPConn
@@ -45,32 +99,78 @@ type Network struct {
 type NetworkMessage struct {
 	ID         int64
 	RPC        int
-	Sender     *Contact
-	Target     *Contact
+	Sender     *routing.Contact
+	Target     *routing.Contact
 	BodyDigest string
 	Body       string
-	Contacts   []Contact
+	Contacts   []routing.Contact
 }
 
-func CreateNewNetwork(kademlia *Kademlia, port int) Network {
+// Create a new network instance.
+//
+// Parameters:
+//
+//	port: The port to listen on.
+//	datastore: The datastore to use.
+//
+// Returns:
+//
+//	A new network instance and a contact that will be used when communicating
+//	with other nodes.
+func NewNetwork(port int, datastore *cmap.ConcurrentMap[[]byte]) (*Network, *routing.Contact) {
+	myAddress := fmt.Sprintf("%s:%d", GetOutboundIP(), port)
+	me := routing.NewContact(routing.NewRandomKademliaID(), myAddress)
+
 	net := Network{
-		Kademlia:       kademlia,
+		me:             &me,
+		routingtable:   routing.NewRoutingTable(me),
+		datastore:      datastore,
 		incomingData:   make(chan []byte),
 		outgoingMsg:    make(chan NetworkMessage),
-		messageCounter: MakeCounter(),
+		messageCounter: util.MakeCounter(),
 		port:           port,
 		quitListenSig:  make(chan struct{}, 1),
 		waiters:        cmap.New[chan NetworkMessage](),
 	}
 	go net.messageSender()
-	return net
+	return &net, &me
 }
 
-// Listen for incoming UDP network messages.
+func (network *Network) GetMe() *routing.Contact {
+	return network.me
+}
+
+func (network *Network) GetRoutingTable() routing.IRoutingTable {
+	return network.routingtable
+}
+
+func (network *Network) GetDatastore() *cmap.ConcurrentMap[[]byte] {
+	return network.datastore
+}
+
+func (network *Network) NewNetworkMessage(
+	rpc int,
+	sender *routing.Contact,
+	target *routing.Contact,
+	bodyDigest string,
+	body string,
+	contacts []routing.Contact,
+) *NetworkMessage {
+	return &NetworkMessage{
+		ID:         network.messageCounter.GetNext(),
+		RPC:        rpc,
+		Sender:     sender,
+		Target:     target,
+		BodyDigest: bodyDigest,
+		Body:       body,
+		Contacts:   contacts,
+	}
+}
+
 func (network *Network) Listen() {
 	addr := net.UDPAddr{
 		Port: network.port,
-		IP:   net.ParseIP(network.Kademlia.Me.Address),
+		IP:   net.ParseIP(network.me.Address),
 	}
 
 	socket, err := net.ListenUDP("udp", &addr)
@@ -104,56 +204,23 @@ func (network *Network) StopListen() {
 	network.incomingDataSocket.Close()
 }
 
-func (network *Network) SendPingMessage(contact *Contact, alive chan bool) {
-	msg := NetworkMessage{
-		ID:     network.messageCounter.GetNext(),
-		RPC:    MESSAGE_RPC_PING,
-		Sender: network.Kademlia.Me,
-		Target: contact,
-	}
-
+func (network *Network) SendMessageWithResponse(msg NetworkMessage) (response NetworkMessage, timeout bool) {
 	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
-
 	defer network.waiters.Remove(fmt.Sprint(msg.ID))
-	go network.sendMessage(msg)
+
+	network.outgoingMsg <- msg
 
 	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
 	select {
-	case <-waitchannel:
-		alive <- true
+	case response := <-waitchannel:
+		return response, false
 	case <-time.After(NETWORK_REQUEST_TIMEOUT):
-		alive <- false
-		log.Printf("Ping timeout: %s\n", contact.String())
+		return NetworkMessage{}, true
 	}
 }
 
-// Send a message to the specified contact.
-//
-// If the contact responds, the returned contacts will added to the contacts channel.
-// Otherwise, an empty array will be added to the contacts channel.
-func (network *Network) SendFindContactMessage(contact *Contact, id *KademliaID, contacts chan []Contact) {
-	msg := NetworkMessage{
-		ID:     network.messageCounter.GetNext(),
-		RPC:    MESSAGE_RPC_FIND_NODE,
-		Sender: network.Kademlia.Me,
-		Target: contact,
-		Body:   id.String(),
-	}
-
-	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
-
-	defer network.waiters.Remove(fmt.Sprint(msg.ID))
-	go network.sendMessage(msg)
-
-	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
-
-	select {
-	case msg := <-waitchannel:
-		contacts <- msg.Contacts
-	case <-time.After(NETWORK_REQUEST_TIMEOUT):
-		contacts <- make([]Contact, 0)
-		log.Printf("Find contact timeout: %s\n", contact.String())
-	}
+func (network *Network) SendMessage(msg NetworkMessage) {
+	network.outgoingMsg <- msg
 }
 
 // Process incoming network data in the 'network.incomingData' channel
@@ -173,7 +240,7 @@ func (network *Network) incomingDataHandler() {
 
 // Take actions on a network message
 func (network *Network) messageHandler(msg *NetworkMessage) {
-	network.Kademlia.Routing.AddContact(*msg.Sender)
+	network.routingtable.AddContact(*msg.Sender)
 
 	if c, ok := network.waiters.Get(fmt.Sprint(msg.ID)); ok {
 		c <- *msg
@@ -185,10 +252,10 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 	case MESSAGE_RPC_PING:
 		msg.RPC = MESSAGE_PONG
 		network.generateReturnMessage(msg)
-		network.sendMessage(*msg)
+		network.SendMessage(*msg)
 	case MESSAGE_RPC_STORE:
-		network.Kademlia.DataStore.Set(msg.BodyDigest, []byte(msg.Body))
-		_, ok := network.Kademlia.DataStore.Get(msg.BodyDigest)
+		network.datastore.Set(msg.BodyDigest, []byte(msg.Body))
+		_, ok := network.datastore.Get(msg.BodyDigest)
 		if ok {
 			msg.Body = "1"
 		} else {
@@ -196,17 +263,17 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		}
 		msg.RPC = MESSAGE_VALUE
 		network.generateReturnMessage(msg)
-		network.sendMessage(*msg)
+		network.SendMessage(*msg)
 	case MESSAGE_RPC_FIND_NODE:
-		contactId := NewKademliaID(msg.Body)
-		nodes := network.Kademlia.Routing.FindClosestContacts(contactId, 20) // TODO: Get count value (20) from some parameter
+		contactId := routing.NewKademliaID(msg.Body)
+		nodes := network.routingtable.FindClosestContacts(contactId, 20) // TODO: Get count value (20) from some parameter
 
 		msg.RPC = MESSAGE_NODE_LIST
 		msg.Contacts = nodes
 		network.generateReturnMessage(msg)
-		network.sendMessage(*msg)
+		network.SendMessage(*msg)
 	case MESSAGE_RPC_FIND_VALUE:
-		value, exists := network.Kademlia.DataStore.Get(msg.BodyDigest)
+		value, exists := network.datastore.Get(msg.BodyDigest)
 		if exists {
 			log.Printf("Data: %v (%s) found on node %s\n", value, string(value), msg.Target.String())
 		} else {
@@ -216,26 +283,12 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		msg.RPC = MESSAGE_VALUE
 		msg.Body = string(value)
 		network.generateReturnMessage(msg)
-		network.sendMessage(*msg)
+		network.SendMessage(*msg)
 	case MESSAGE_PONG:
 	case MESSAGE_NODE_LIST:
 	case MESSAGE_VALUE:
 		// TODO: Implement message response
 	}
-}
-
-// Get IP-address of this computer
-func GetOutboundIP() string {
-	// https://stackoverflow.com/a/37382208
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP.String()
 }
 
 // Deserialize a byte array to a networkMessage
@@ -258,69 +311,7 @@ func serializeMessage(msg NetworkMessage) []byte {
 func (network *Network) generateReturnMessage(msg *NetworkMessage) {
 	returnContact := *msg.Sender
 	msg.Target = &returnContact
-	msg.Sender = network.Kademlia.Me
-}
-
-// Send network message
-func (network *Network) sendMessage(msg NetworkMessage) {
-	network.outgoingMsg <- msg
-}
-
-// Send a store command to store data
-//
-// If store is succesful, success will be true. Otherwise, false.
-func (network *Network) SendStoreMessage(contact *Contact, hash string, data []byte) (succes bool) {
-	msg := NetworkMessage{
-		ID:         network.messageCounter.GetNext(),
-		RPC:        MESSAGE_RPC_STORE,
-		Sender:     network.Kademlia.Me,
-		Target:     contact,
-		BodyDigest: hash,
-		Body:       string(data),
-	}
-
-	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
-
-	defer network.waiters.Remove(fmt.Sprint(msg.ID))
-	go network.sendMessage(msg)
-
-	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
-	select {
-	case msg := <-waitchannel:
-		succes, _ := strconv.ParseBool(msg.Body)
-		return succes
-	case <-time.After(NETWORK_REQUEST_TIMEOUT):
-		log.Printf("Store timeout: %s\n", contact.String())
-		return false
-	}
-}
-
-// Send Lookup command to find data
-//
-// If lookup is succesful, the found value will be added to the value channel.
-// Otherwise, a "::timeout::" string-value will be added to the value channel.
-func (network *Network) SendLookupMessage(contact *Contact, hash string, value chan string) {
-	msg := NetworkMessage{
-		ID:         network.messageCounter.GetNext(),
-		RPC:        MESSAGE_RPC_FIND_VALUE,
-		Sender:     network.Kademlia.Me,
-		Target:     contact,
-		BodyDigest: hash,
-	}
-
-	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
-
-	defer network.waiters.Remove(fmt.Sprint(msg.ID))
-	go network.sendMessage(msg)
-
-	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
-	select {
-	case msg := <-waitchannel:
-		value <- msg.Body
-	case <-time.After(NETWORK_REQUEST_TIMEOUT):
-		value <- NETWORK_REQUEST_TIMEOUT_STRING
-		log.Printf("Ping timeout: %s\n", contact.String())
-	}
+	msg.Sender = network.me
 }
 
 func (network *Network) messageSender() {

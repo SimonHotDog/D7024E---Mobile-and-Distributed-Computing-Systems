@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func GetAvaliableCommands(context *kademlia.Kademlia, args string) (string, error) {
+func GetAvaliableCommands(context kademlia.IKademlia, args string) (string, error) {
 	var commands = AllCommands()
 	var sb strings.Builder
 

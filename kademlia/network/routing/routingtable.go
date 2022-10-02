@@ -1,6 +1,20 @@
-package kademlia
+package routing
 
 const bucketSize = 20
+
+type IRoutingTable interface {
+	// AddContact add a new contact to the correct Bucket. Contact will not be added if it is me
+	AddContact(contact Contact)
+
+	// FindClosestContacts finds the count closest Contacts to the target in the RoutingTable
+	FindClosestContacts(target *KademliaID, count int) []Contact
+
+	// Get number of nodes in the RoutingTable
+	GetNumberOfNodes() int
+
+	// Get all nodes in the RoutingTable
+	Nodes() []Contact
+}
 
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
@@ -19,7 +33,6 @@ func NewRoutingTable(me Contact) *RoutingTable {
 	return routingTable
 }
 
-// AddContact add a new contact to the correct Bucket. Contact will not be added if it is me
 func (routingTable *RoutingTable) AddContact(contact Contact) {
 	if routingTable.me.ID.Equals(contact.ID) {
 		return
@@ -29,7 +42,6 @@ func (routingTable *RoutingTable) AddContact(contact Contact) {
 	bucket.AddContact(contact)
 }
 
-// FindClosestContacts finds the count closest Contacts to the target in the RoutingTable
 func (routingTable *RoutingTable) FindClosestContacts(target *KademliaID, count int) []Contact {
 	var candidates ContactCandidates
 	bucketIndex := routingTable.getBucketIndex(target)

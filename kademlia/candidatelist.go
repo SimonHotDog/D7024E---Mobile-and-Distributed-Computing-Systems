@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"d7024e/kademlia/network/routing"
 	"math"
 	"sort"
 	"sync"
@@ -9,18 +10,18 @@ import (
 type CandidateList struct {
 	// Sorted list of candidates
 	candidates []Candidate
-	targetID   *KademliaID
+	targetID   *routing.KademliaID
 	lock       sync.RWMutex
 	Limit      int
 }
 
 type Candidate struct {
-	Contact  Contact
+	Contact  routing.Contact
 	Checked  bool
-	Distance KademliaID
+	Distance routing.KademliaID
 }
 
-func NewCandidateList(targetID *KademliaID, candidateLimit int) *CandidateList {
+func NewCandidateList(targetID *routing.KademliaID, candidateLimit int) *CandidateList {
 	// TODO: Remove candidate limit, or improve it
 	cl := &CandidateList{
 		targetID: targetID,
@@ -30,19 +31,19 @@ func NewCandidateList(targetID *KademliaID, candidateLimit int) *CandidateList {
 	return cl
 }
 
-func (cl *CandidateList) AddMultiple(contacts []Contact) {
+func (cl *CandidateList) AddMultiple(contacts []routing.Contact) {
 	for _, contact := range contacts {
 		cl.Add(contact)
 	}
 }
 
-func (cl *CandidateList) Add(contact Contact) {
+func (cl *CandidateList) Add(contact routing.Contact) {
 	if cl.Exists(contact.ID) {
 		return
 	}
 
 	contact.CalcDistance(cl.targetID)
-	candidate := Candidate{contact, false, *contact.distance}
+	candidate := Candidate{contact, false, *contact.Distance}
 
 	cl.lock.RLock()
 	defer cl.lock.RUnlock()
@@ -59,7 +60,7 @@ func (cl *CandidateList) Add(contact Contact) {
 	})
 }
 
-func (cl *CandidateList) Get(id *KademliaID) *Candidate {
+func (cl *CandidateList) Get(id *routing.KademliaID) *Candidate {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
 	for i := 0; i < len(cl.candidates); i++ {
@@ -75,7 +76,7 @@ func (cl *CandidateList) GetAll() []Candidate {
 }
 
 // removed candidate from candidate list
-func (cl *CandidateList) Remove(id *KademliaID) {
+func (cl *CandidateList) Remove(id *routing.KademliaID) {
 	cl.lock.RLock()
 	for i := 0; i < len(cl.candidates); i++ {
 		if cl.candidates[i].Contact.ID.Equals(id) {
@@ -86,7 +87,7 @@ func (cl *CandidateList) Remove(id *KademliaID) {
 }
 
 // Checks if candidate exists
-func (cl *CandidateList) Exists(id *KademliaID) bool {
+func (cl *CandidateList) Exists(id *routing.KademliaID) bool {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
 	for _, candidate := range cl.candidates {
@@ -103,7 +104,7 @@ func (cl *CandidateList) Len() int {
 }
 
 // Mark candidate as checked
-func (cl *CandidateList) Check(id *KademliaID) {
+func (cl *CandidateList) Check(id *routing.KademliaID) {
 	cl.lock.RLock()
 	defer cl.lock.RUnlock()
 	for i, candidate := range cl.candidates {
