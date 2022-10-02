@@ -17,7 +17,7 @@ func TestLookupMessage(t *testing.T) {
 		networkB, _ := network.CreateTestNetwork(14048)
 		messageBytes := []byte(expected)
 		messageHash := util.Hash([]byte(messageBytes))
-		networkB.Datastore.Set(messageHash, messageBytes)
+		networkB.GetDatastore().Set(messageHash, messageBytes)
 
 		go networkA.Listen()
 		go networkB.Listen()
@@ -25,7 +25,7 @@ func TestLookupMessage(t *testing.T) {
 		defer networkB.StopListen()
 		time.Sleep(20 * time.Millisecond)
 
-		go SendLookupMessage(networkA, networkB.Me, messageHash, valueChannel)
+		go SendLookupMessage(networkA, networkB.GetMe(), messageHash, valueChannel)
 		actual := <-valueChannel
 
 		if strings.Compare(actual, expected) != 0 {
@@ -43,13 +43,13 @@ func TestLookupMessageTimeout(t *testing.T) {
 		networkB, _ := network.CreateTestNetwork(14048)
 		messageBytes := []byte("Test")
 		messageHash := util.Hash([]byte(messageBytes))
-		networkB.Datastore.Set(messageHash, messageBytes)
+		networkB.GetDatastore().Set(messageHash, messageBytes)
 
 		go networkA.Listen()
 		defer networkA.StopListen()
 		time.Sleep(20 * time.Millisecond)
 
-		go SendLookupMessage(networkA, networkB.Me, messageHash, valueChannel)
+		go SendLookupMessage(networkA, networkB.GetMe(), messageHash, valueChannel)
 		actual := <-valueChannel
 
 		if strings.Compare(actual, expected) != 0 {
@@ -74,16 +74,16 @@ func TestStoreBeforeLookupMessage(t *testing.T) {
 		defer networkB.StopListen()
 		time.Sleep(20 * time.Millisecond)
 
-		storeOk := SendStoreMessage(networkA, networkB.Me, messageHash, messageBytes)
+		storeOk := SendStoreMessage(networkA, networkB.GetMe(), messageHash, messageBytes)
 		if !storeOk {
 			t.Errorf("Expected store to succeed")
 			return
 		}
-		go SendLookupMessage(networkA, networkB.Me, messageHash, valueChannel)
+		go SendLookupMessage(networkA, networkB.GetMe(), messageHash, valueChannel)
 		actual := <-valueChannel
 
-		a, oka := networkA.Datastore.Get(messageHash)
-		b, okb := networkB.Datastore.Get(messageHash)
+		a, oka := networkA.GetDatastore().Get(messageHash)
+		b, okb := networkB.GetDatastore().Get(messageHash)
 		_ = a
 		_ = oka
 		_ = b

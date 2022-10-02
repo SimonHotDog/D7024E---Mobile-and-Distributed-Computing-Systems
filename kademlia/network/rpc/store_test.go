@@ -23,8 +23,8 @@ func TestStoreMessage(t *testing.T) {
 		defer networkB.StopListen()
 		time.Sleep(20 * time.Millisecond)
 
-		SendStoreMessage(networkA, networkB.Me, messageHash, messageBytes)
-		storedMessage, _ := networkB.Datastore.Get(messageHash)
+		SendStoreMessage(networkA, networkB.GetMe(), messageHash, messageBytes)
+		storedMessage, _ := networkB.GetDatastore().Get(messageHash)
 		actual := string(storedMessage)
 
 		if strings.Compare(actual, expected) != 0 {
@@ -46,7 +46,7 @@ func TestStoreMessageTimeout(t *testing.T) {
 		defer networkA.StopListen()
 		time.Sleep(20 * time.Millisecond)
 
-		actual := SendStoreMessage(networkA, networkB.Me, messageHash, messageBytes)
+		actual := SendStoreMessage(networkA, networkB.GetMe(), messageHash, messageBytes)
 
 		if actual != expected {
 			t.Errorf("Expected %v, got %v", expected, actual)

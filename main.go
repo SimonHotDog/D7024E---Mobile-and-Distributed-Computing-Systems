@@ -28,8 +28,8 @@ func main() {
 	datastore := cmap.New[[]byte]()
 	bootstrap := routing.NewContact(nil, *bootstrapAddress)
 	network, me := network.NewNetwork(*port, &datastore)
-	context := kademlia.Kademlia{Me: me, DataStore: &datastore, Network: network}
-	cli := cli.NewCli(os.Stdout, os.Stdin, &context)
+	context := kademlia.NewKademlia(me, network, &datastore)
+	cli := cli.NewCli(os.Stdout, os.Stdin, context)
 
 	go network.Listen() // TODO: Notify it is actually listening
 	time.Sleep(1 * time.Second)

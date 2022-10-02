@@ -4,7 +4,7 @@ import (
 	"d7024e/kademlia"
 )
 
-func PutObjectInStore(context *kademlia.Kademlia, args string) (string, error) {
+func PutObjectInStore(context kademlia.IKademlia, args string) (string, error) {
 	cleanContent := RemoveDoubleQuotes(args)
 	dataToSend := []byte(cleanContent)
 

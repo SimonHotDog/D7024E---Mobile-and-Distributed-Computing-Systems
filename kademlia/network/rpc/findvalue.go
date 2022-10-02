@@ -10,8 +10,8 @@ import (
 //
 // If lookup is succesful, the found value will be added to the value channel.
 // Otherwise, a "::timeout::" string-value will be added to the value channel.
-func SendLookupMessage(net *network.Network, contact *routing.Contact, hash string, value chan string) {
-	msg := net.NewNetworkMessage(network.MESSAGE_RPC_FIND_VALUE, net.Me, contact, hash, "", nil)
+func SendLookupMessage(net network.INetwork, contact *routing.Contact, hash string, value chan string) {
+	msg := net.NewNetworkMessage(network.MESSAGE_RPC_FIND_VALUE, net.GetMe(), contact, hash, "", nil)
 
 	response, timeout := net.SendMessageWithResponse(*msg)
 

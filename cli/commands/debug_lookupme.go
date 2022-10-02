@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-func Debug_lookupMe(context *kademlia.Kademlia, args string) (string, error) {
+func Debug_lookupMe(context kademlia.IKademlia, args string) (string, error) {
 	var sb strings.Builder
 
-	contacts := context.LookupContact(context.Me.ID)
+	contacts := context.LookupContact(context.GetMe().ID)
 	sb.WriteString(fmt.Sprintf("Recieved %d nodes:\n", len(contacts)))
 	for _, contact := range contacts {
 		sb.WriteString(fmt.Sprintf("   %s\n", contact.String()))

@@ -19,7 +19,7 @@ func TestPingMessage(t *testing.T) {
 		defer networkA.StopListen()
 		defer networkB.StopListen()
 		time.Sleep(20 * time.Millisecond)
-		SendPingMessage(networkA, networkB.Me, alive)
+		SendPingMessage(networkA, networkB.GetMe(), alive)
 		actual := <-alive
 
 		if actual != expected {

@@ -12,7 +12,7 @@ import (
 type Cli struct {
 	out     io.Writer
 	in      io.Reader
-	context *kademlia.Kademlia
+	context kademlia.IKademlia
 }
 
 // Create a new CLI
@@ -22,7 +22,7 @@ type Cli struct {
 //	`out`: The output stream all commands will write to
 //	`in`: The input stream the CLI will read from
 //	`context`: The Kadmlia context the CLI will be using
-func NewCli(out io.Writer, in io.Reader, context *kademlia.Kademlia) *Cli {
+func NewCli(out io.Writer, in io.Reader, context kademlia.IKademlia) *Cli {
 	return &Cli{
 		out:     out,
 		in:      in,

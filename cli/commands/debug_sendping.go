@@ -6,10 +6,10 @@ import (
 	"d7024e/kademlia/network/rpc"
 )
 
-func Debug_sendPing(context *kademlia.Kademlia, args string) (string, error) {
+func Debug_sendPing(context kademlia.IKademlia, args string) (string, error) {
 	contact := routing.Contact{Address: args, ID: nil}
 	alive := make(chan bool)
-	go rpc.SendPingMessage(context.Network, &contact, alive)
+	go rpc.SendPingMessage(context.GetNetwork(), &contact, alive)
 
 	if <-alive {
 		return "Node is alive", nil

@@ -10,9 +10,9 @@ import (
 // Send a store command to store data
 //
 // If store is succesful, success will be true. Otherwise, false.
-func SendStoreMessage(net *network.Network, contact *routing.Contact, hash string, data []byte) (succes bool) {
+func SendStoreMessage(net network.INetwork, contact *routing.Contact, hash string, data []byte) (succes bool) {
 
-	msg := net.NewNetworkMessage(network.MESSAGE_RPC_STORE, net.Me, contact, hash, string(data), nil)
+	msg := net.NewNetworkMessage(network.MESSAGE_RPC_STORE, net.GetMe(), contact, hash, string(data), nil)
 
 	response, timeout := net.SendMessageWithResponse(*msg)
 

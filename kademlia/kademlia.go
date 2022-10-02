@@ -12,20 +12,41 @@ import (
 	cmap "github.com/orcaman/concurrent-map/v2"
 )
 
+type IKademlia interface {
+	// Get me
+	GetMe() *routing.Contact
+	GetNetwork() network.INetwork
+	GetDataStore() *cmap.ConcurrentMap[[]byte]
+
+	LookupContact(targetID *routing.KademliaID) []routing.Contact
+	LookupData(hash string) ([]byte, *routing.Contact)
+	Store(data []byte) (string, error)
+	JoinNetwork(contact *routing.Contact)
+}
+
 type Kademlia struct {
-	Me        *routing.Contact
-	Network   *network.Network
-	DataStore *cmap.ConcurrentMap[[]byte]
+	me        *routing.Contact
+	network   network.INetwork
+	dataStore *cmap.ConcurrentMap[[]byte]
 }
 
 // Hyperparameters
 const K int = 20 //k closest
 const A int = 3  //alpha, 1 is effectively no concurrency
 
+func NewKademlia(me *routing.Contact, network network.INetwork, datastore *cmap.ConcurrentMap[[]byte]) *Kademlia {
+	return &Kademlia{me, network, datastore}
+}
+
+// Getters
+func (kademlia *Kademlia) GetMe() *routing.Contact                   { return kademlia.me }
+func (kademlia *Kademlia) GetNetwork() network.INetwork              { return kademlia.network }
+func (kademlia *Kademlia) GetDataStore() *cmap.ConcurrentMap[[]byte] { return kademlia.dataStore }
+
 // Lookup contacts
 func (kademlia *Kademlia) LookupContact(targetID *routing.KademliaID) []routing.Contact {
 	candidateList := NewCandidateList(targetID, K)
-	kClosestContacts := kademlia.Network.Routingtable.FindClosestContacts(targetID, K)
+	kClosestContacts := kademlia.network.GetRoutingTable().FindClosestContacts(targetID, K)
 
 	kademlia.lookupContactAux(targetID, kClosestContacts, candidateList)
 
@@ -55,7 +76,7 @@ func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contact
 			}
 
 			channel := make(chan []routing.Contact, 1)
-			go rpc.SendFindContactMessage(kademlia.Network, &contact, targetID, channel)
+			go rpc.SendFindContactMessage(kademlia.network, &contact, targetID, channel)
 			contacts := <-channel
 			cl.Check(contact.ID)
 
@@ -89,7 +110,7 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
 		//kademlia.Network.SendLookup(&contact, hash) //send FindLocally to each
 
 		valuechannel := make(chan string, 1)
-		go rpc.SendLookupMessage(kademlia.Network, &contact, hash, valuechannel) //send FindLocally to each
+		go rpc.SendLookupMessage(kademlia.network, &contact, hash, valuechannel) //send FindLocally to each
 		value := <-valuechannel
 		//fmt.Printf("Recieved value %v from node %v", value, contact.String())
 		if value != "" {
@@ -114,7 +135,7 @@ func (kademlia *Kademlia) Store(data []byte) (string, error) {
 		for _, contact := range contacts { // for each of the <=5 contacts found...
 			log.Printf("Storing message with hash %s at node %s\n", hashed, contact.String())
 			// TODO: Make this concurrent
-			ok := rpc.SendStoreMessage(kademlia.Network, &contact, hashed, data) //send StoreLocally to each
+			ok := rpc.SendStoreMessage(kademlia.network, &contact, hashed, data) //send StoreLocally to each
 			if !ok {
 				log.Println("Could not store message at node " + contact.String())
 			}
@@ -128,7 +149,7 @@ func (kademlia *Kademlia) Store(data []byte) (string, error) {
 func (kademlia *Kademlia) JoinNetwork(knownNode *routing.Contact) {
 	log.Printf("Joining network via %v...", knownNode)
 	repononseChannel := make(chan []routing.Contact)
-	go rpc.SendFindContactMessage(kademlia.Network, knownNode, kademlia.Me.ID, repononseChannel)
+	go rpc.SendFindContactMessage(kademlia.network, knownNode, kademlia.me.ID, repononseChannel)
 
 	// Ping all recieved contacts and add them to routing-table if they respond
 	contacts := <-repononseChannel
@@ -138,9 +159,9 @@ func (kademlia *Kademlia) JoinNetwork(knownNode *routing.Contact) {
 		wg.Add(1)
 		go func(contact routing.Contact) {
 			aliveChannel := make(chan bool)
-			go rpc.SendPingMessage(kademlia.Network, &contact, aliveChannel)
+			go rpc.SendPingMessage(kademlia.network, &contact, aliveChannel)
 			if <-aliveChannel {
-				kademlia.Network.Routingtable.AddContact(contact)
+				kademlia.network.GetRoutingTable().AddContact(contact)
 				c.Increase()
 			}
 			wg.Done()

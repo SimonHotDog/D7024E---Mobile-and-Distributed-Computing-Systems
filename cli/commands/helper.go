@@ -6,7 +6,7 @@ type Command struct {
 	Name        string
 	Args        string
 	Description string
-	Action      func(context *kademlia.Kademlia, args string) (string, error)
+	Action      func(context kademlia.IKademlia, args string) (string, error)
 }
 
 func AllCommands() []Command {

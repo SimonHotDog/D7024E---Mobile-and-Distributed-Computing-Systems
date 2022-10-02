@@ -6,8 +6,8 @@ import (
 	"log"
 )
 
-func SendPingMessage(net *network.Network, contact *routing.Contact, alive chan bool) {
-	msg := net.NewNetworkMessage(network.MESSAGE_RPC_PING, net.Me, contact, "", "", nil)
+func SendPingMessage(net network.INetwork, contact *routing.Contact, alive chan bool) {
+	msg := net.NewNetworkMessage(network.MESSAGE_RPC_PING, net.GetMe(), contact, "", "", nil)
 
 	_, timeout := net.SendMessageWithResponse(*msg)
 

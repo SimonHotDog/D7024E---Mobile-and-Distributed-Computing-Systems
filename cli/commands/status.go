@@ -5,6 +5,6 @@ import (
 	"errors"
 )
 
-func GetStatus(context *kademlia.Kademlia, args string) (string, error) {
+func GetStatus(context kademlia.IKademlia, args string) (string, error) {
 	return "", errors.New("not implemented yet")
 }

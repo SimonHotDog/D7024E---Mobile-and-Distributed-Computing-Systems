@@ -10,8 +10,8 @@ import (
 //
 // If the contact responds, the returned contacts will added to the contacts channel.
 // Otherwise, an empty array will be added to the contacts channel.
-func SendFindContactMessage(net *network.Network, contact *routing.Contact, id *routing.KademliaID, contacts chan []routing.Contact) {
-	msg := net.NewNetworkMessage(network.MESSAGE_RPC_FIND_NODE, net.Me, contact, "", id.String(), nil)
+func SendFindContactMessage(net network.INetwork, contact *routing.Contact, id *routing.KademliaID, contacts chan []routing.Contact) {
+	msg := net.NewNetworkMessage(network.MESSAGE_RPC_FIND_NODE, net.GetMe(), contact, "", id.String(), nil)
 
 	response, timeout := net.SendMessageWithResponse(*msg)
 

@@ -27,7 +27,7 @@ func TestSendFindNodeMessage(t *testing.T) {
 			networkA, _ := network.CreateTestNetwork(14041)
 			networkB, _ := network.CreateTestNetwork(14048)
 			for i := 0; i < test.nContactsInRoutingTable; i++ {
-				networkB.Routingtable.AddContact(routing.NewContact(routing.NewRandomKademliaID(), ""))
+				networkB.GetRoutingTable().AddContact(routing.NewContact(routing.NewRandomKademliaID(), ""))
 			}
 
 			go networkA.Listen()
@@ -37,7 +37,7 @@ func TestSendFindNodeMessage(t *testing.T) {
 
 			time.Sleep(20 * time.Millisecond)
 
-			SendFindContactMessage(networkA, networkB.Me, networkA.Me.ID, contacts)
+			SendFindContactMessage(networkA, networkB.GetMe(), networkA.GetMe().ID, contacts)
 			actual := <-contacts
 
 			if len(actual) != test.expectedNContacts {
@@ -56,7 +56,7 @@ func TestSendFindNodeMessageTimout(t *testing.T) {
 
 		time.Sleep(20 * time.Millisecond)
 
-		SendFindContactMessage(network, network.Me, network.Me.ID, contacts)
+		SendFindContactMessage(network, network.GetMe(), network.GetMe().ID, contacts)
 		actual := <-contacts
 
 		if len(actual) != expectedNContacts {

@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-func GetObjectByHash(context *kademlia.Kademlia, args string) (string, error) {
+func GetObjectByHash(context kademlia.IKademlia, args string) (string, error) {
 	cleanHash := RemoveDoubleQuotes(args)
 	value, _ := context.LookupData(cleanHash)
 	if value != nil {

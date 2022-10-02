@@ -32,10 +32,60 @@ const (
 	NETWORK_REQUEST_TIMEOUT_STRING = "::timeout::"
 )
 
+type INetwork interface {
+	GetMe() *routing.Contact
+	GetRoutingTable() routing.IRoutingTable
+	GetDatastore() *cmap.ConcurrentMap[[]byte]
+
+	// Create a new network instance.
+	//
+	// Parameters:
+	//
+	//	port: The port to listen on.
+	//	datastore: The datastore to use.
+	//
+	// Returns:
+	//
+	//	A new network instance and a contact that will be used when communicating
+	//	with other nodes.
+	NewNetworkMessage(
+		rpc int,
+		sender *routing.Contact,
+		target *routing.Contact,
+		bodyDigest string,
+		body string,
+		contacts []routing.Contact,
+	) *NetworkMessage
+
+	// Listen for incoming UDP network messages.
+	Listen()
+
+	// Stop listening for incoming UDP network messages.
+	StopListen()
+
+	// Send network message and wait on response.
+	//
+	// If the contact responds, the response will be returned and `timeout` be false.
+	//
+	// Otherwise, after time to respond exceeds `network.NETWORK_REQUEST_TIMEOUT`,
+	// timeout occured and `timeout` will be true.
+	//
+	// Parameters:
+	//
+	//	msg: The message to send
+	SendMessageWithResponse(msg NetworkMessage) (response NetworkMessage, timeout bool)
+
+	// Send network message and don't wait for response
+	// Parameters:
+	//
+	//	msg: The message to send
+	SendMessage(msg NetworkMessage)
+}
+
 type Network struct {
-	Me           *routing.Contact
-	Routingtable *routing.RoutingTable
-	Datastore    *cmap.ConcurrentMap[[]byte]
+	me           *routing.Contact
+	routingtable routing.IRoutingTable
+	datastore    *cmap.ConcurrentMap[[]byte]
 
 	incomingData       chan []byte
 	outgoingMsg        chan NetworkMessage
@@ -72,10 +122,9 @@ func NewNetwork(port int, datastore *cmap.ConcurrentMap[[]byte]) (*Network, *rou
 	me := routing.NewContact(routing.NewRandomKademliaID(), myAddress)
 
 	net := Network{
-		Me:           &me,
-		Routingtable: routing.NewRoutingTable(me),
-
-		Datastore:      datastore,
+		me:             &me,
+		routingtable:   routing.NewRoutingTable(me),
+		datastore:      datastore,
 		incomingData:   make(chan []byte),
 		outgoingMsg:    make(chan NetworkMessage),
 		messageCounter: util.MakeCounter(),
@@ -85,6 +134,18 @@ func NewNetwork(port int, datastore *cmap.ConcurrentMap[[]byte]) (*Network, *rou
 	}
 	go net.messageSender()
 	return &net, &me
+}
+
+func (network *Network) GetMe() *routing.Contact {
+	return network.me
+}
+
+func (network *Network) GetRoutingTable() routing.IRoutingTable {
+	return network.routingtable
+}
+
+func (network *Network) GetDatastore() *cmap.ConcurrentMap[[]byte] {
+	return network.datastore
 }
 
 func (network *Network) NewNetworkMessage(
@@ -106,11 +167,10 @@ func (network *Network) NewNetworkMessage(
 	}
 }
 
-// Listen for incoming UDP network messages.
 func (network *Network) Listen() {
 	addr := net.UDPAddr{
 		Port: network.port,
-		IP:   net.ParseIP(network.Me.Address),
+		IP:   net.ParseIP(network.me.Address),
 	}
 
 	socket, err := net.ListenUDP("udp", &addr)
@@ -144,16 +204,6 @@ func (network *Network) StopListen() {
 	network.incomingDataSocket.Close()
 }
 
-// Send network message and wait on response.
-//
-// If the contact responds, the response will be returned and `timeout` be false.
-//
-// Otherwise, after time to respond exceeds `network.NETWORK_REQUEST_TIMEOUT`,
-// timeout occured and `timeout` will be true.
-//
-// Parameters:
-//
-//	msg: The message to send
 func (network *Network) SendMessageWithResponse(msg NetworkMessage) (response NetworkMessage, timeout bool) {
 	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
 	defer network.waiters.Remove(fmt.Sprint(msg.ID))
@@ -169,10 +219,6 @@ func (network *Network) SendMessageWithResponse(msg NetworkMessage) (response Ne
 	}
 }
 
-// Send network message and don't wait for response
-// Parameters:
-//
-//	msg: The message to send
 func (network *Network) SendMessage(msg NetworkMessage) {
 	network.outgoingMsg <- msg
 }
@@ -194,7 +240,7 @@ func (network *Network) incomingDataHandler() {
 
 // Take actions on a network message
 func (network *Network) messageHandler(msg *NetworkMessage) {
-	network.Routingtable.AddContact(*msg.Sender)
+	network.routingtable.AddContact(*msg.Sender)
 
 	if c, ok := network.waiters.Get(fmt.Sprint(msg.ID)); ok {
 		c <- *msg
@@ -208,8 +254,8 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		network.generateReturnMessage(msg)
 		network.SendMessage(*msg)
 	case MESSAGE_RPC_STORE:
-		network.Datastore.Set(msg.BodyDigest, []byte(msg.Body))
-		_, ok := network.Datastore.Get(msg.BodyDigest)
+		network.datastore.Set(msg.BodyDigest, []byte(msg.Body))
+		_, ok := network.datastore.Get(msg.BodyDigest)
 		if ok {
 			msg.Body = "1"
 		} else {
@@ -220,14 +266,14 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 		network.SendMessage(*msg)
 	case MESSAGE_RPC_FIND_NODE:
 		contactId := routing.NewKademliaID(msg.Body)
-		nodes := network.Routingtable.FindClosestContacts(contactId, 20) // TODO: Get count value (20) from some parameter
+		nodes := network.routingtable.FindClosestContacts(contactId, 20) // TODO: Get count value (20) from some parameter
 
 		msg.RPC = MESSAGE_NODE_LIST
 		msg.Contacts = nodes
 		network.generateReturnMessage(msg)
 		network.SendMessage(*msg)
 	case MESSAGE_RPC_FIND_VALUE:
-		value, exists := network.Datastore.Get(msg.BodyDigest)
+		value, exists := network.datastore.Get(msg.BodyDigest)
 		if exists {
 			log.Printf("Data: %v (%s) found on node %s\n", value, string(value), msg.Target.String())
 		} else {
@@ -265,7 +311,7 @@ func serializeMessage(msg NetworkMessage) []byte {
 func (network *Network) generateReturnMessage(msg *NetworkMessage) {
 	returnContact := *msg.Sender
 	msg.Target = &returnContact
-	msg.Sender = network.Me
+	msg.Sender = network.me
 }
 
 func (network *Network) messageSender() {
