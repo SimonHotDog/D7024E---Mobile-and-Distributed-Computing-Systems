@@ -73,6 +73,8 @@ func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contact
 			if candidate != nil && candidate.Checked {
 				// Already checked
 				return
+			} else {
+				cl.Add(contact)
 			}
 
 			channel := make(chan []routing.Contact, 1)
