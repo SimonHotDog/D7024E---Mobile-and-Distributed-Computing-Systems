@@ -3,6 +3,8 @@ package kademlia
 import (
 	"d7024e/kademlia/network/routing"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewCandidateList(t *testing.T) {
@@ -20,9 +22,7 @@ func TestNewCandidateList(t *testing.T) {
 		cl.AddMultiple(contacts)
 
 		// Assert
-		if cl.targetID != targetid {
-			t.Errorf("Expected targetid %v, got %v", targetid, cl.targetID)
-		}
+		assert.Equal(t, cl.targetID, targetid)
 	})
 }
 
@@ -48,17 +48,12 @@ func TestCandidateExists(t *testing.T) {
 
 		actual := cl.Exists(ids[2])
 
-		if actual != true {
-			t.Errorf("Expected targetid %v, got %v", true, actual)
-		}
+		assert.True(t, actual)
 
 		x := routing.NewRandomKademliaID()
 		actual2 := cl.Exists(x)
 
-		if actual2 != false {
-			t.Errorf("Expected targetid %v, got %v", false, actual2)
-		}
-
+		assert.False(t, actual2)
 	})
 }
 
@@ -86,9 +81,7 @@ func TestRemoveFromCandidateList(t *testing.T) {
 		//Assert
 		actual := cl.Exists(ids[3])
 
-		if actual != false {
-			t.Errorf("Expected targetid %v, got %v", false, actual)
-		}
+		assert.False(t, actual)
 	})
 }
 
@@ -97,24 +90,35 @@ func TestGetCandidateFromID(t *testing.T) {
 	t.Run(testname, func(t *testing.T) {
 		//Arrange
 		wantedId := "F000000000000000000000000000000000000000"
-		wamtedContact := routing.NewContact(routing.NewKademliaID(wantedId), "")
+		wantedContact := routing.NewContact(routing.NewKademliaID(wantedId), "")
 		targetid := routing.NewRandomKademliaID()
 		cl := NewCandidateList(targetid, 8)
 		cl.Add(routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000001"), ""))
 		cl.Add(routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), ""))
-		cl.Add(wamtedContact)
+		cl.Add(wantedContact)
 
 		//Act
 		actual := cl.Get(routing.NewKademliaID(wantedId))
-		if actual == nil {
-			t.Errorf("Expected a candidate, got %v", actual)
-		}
 
 		//Assert
-		if !actual.Contact.ID.Equals(wamtedContact.ID) {
-			t.Errorf("Expected targetid %v, got %v", wamtedContact.String(), actual.Contact.String())
-		}
+		assert.NotNil(t, actual)
+		assert.Equal(t, wantedContact.ID, actual.Contact.ID)
 	})
+}
+
+func TestGetWhenNotFound(t *testing.T) {
+	//Arrange
+	nonExistingId := "F000000000000000000000000000000000000000"
+	targetid := routing.NewRandomKademliaID()
+	cl := NewCandidateList(targetid, 8)
+	cl.Add(routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000001"), ""))
+	cl.Add(routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), ""))
+
+	//Act
+	actual := cl.Get(routing.NewKademliaID(nonExistingId))
+
+	//Assert
+	assert.Nil(t, actual)
 }
 
 func TestAddWhenListIsNotFull(t *testing.T) {
@@ -136,9 +140,8 @@ func TestAddWhenListIsNotFull(t *testing.T) {
 		actual := cl.Get(contactToAdd.ID)
 
 		//Assert
-		if actual != nil && actual.Contact.ID.Equals(contactToAdd.ID) == false {
-			t.Errorf("Expected contact %v, got %v", contactToAdd, actual.Contact)
-		}
+		assert.NotNil(t, actual)
+		assert.Equal(t, contactToAdd.ID, actual.Contact.ID)
 	})
 }
 
@@ -168,9 +171,8 @@ func TestAddWhenListIsFullAndReplace(t *testing.T) {
 		actual := cl.Get(contactToAdd.ID)
 
 		//Assert
-		if actual != nil && actual.Contact.ID.Equals(contactToAdd.ID) == false {
-			t.Errorf("Expected contact %v, got %v", contactToAdd, actual.Contact)
-		}
+		assert.NotNil(t, actual)
+		assert.Equal(t, contactToAdd.ID, actual.Contact.ID)
 	})
 }
 
@@ -202,9 +204,7 @@ func TestAddWhenListIsFullAndNotReplace(t *testing.T) { // Disabled
 		actual := cl.Get(contactToAdd.ID)
 
 		//Assert
-		if actual != nil {
-			t.Errorf("Expected %v, got %v", nil, actual.Contact)
-		}
+		assert.Nil(t, actual)
 	})
 }
 
@@ -231,8 +231,46 @@ func TestCheckedStatusWhenAddDuplicate(t *testing.T) {
 		actual := cl.Get(contactToAdd.ID).Checked
 
 		//Assert
-		if actual != expected {
-			t.Errorf("Expected contact %v, got %v", true, actual)
-		}
+		assert.Equal(t, expected, actual)
 	})
+}
+
+func TestLen(t *testing.T) {
+	expected := 8
+	var contacts []routing.Contact
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000001"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000003"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000004"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000005"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000006"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000007"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000008"), ""))
+
+	cl := NewCandidateList(routing.NewKademliaID("0000000000000000000000000000000000000000"), 8)
+	cl.AddMultiple(contacts)
+
+	actual := cl.Len()
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestGetAll(t *testing.T) {
+	expected := 8
+	var contacts []routing.Contact
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000001"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000003"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000004"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000005"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000006"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000007"), ""))
+	contacts = append(contacts, routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000008"), ""))
+
+	cl := NewCandidateList(routing.NewKademliaID("0000000000000000000000000000000000000000"), 8)
+	cl.AddMultiple(contacts)
+
+	actual := cl.GetAll()
+
+	assert.Equal(t, expected, len(actual))
 }
