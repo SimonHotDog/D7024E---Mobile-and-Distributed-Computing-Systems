@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	cmap "github.com/orcaman/concurrent-map/v2"
@@ -93,6 +94,7 @@ type Network struct {
 	messageCounter     *util.Counter
 	port               int
 	quitListenSig      chan struct{}
+	incomingDataLock   sync.Mutex
 	incomingDataSocket *net.UDPConn
 }
 
@@ -178,7 +180,10 @@ func (network *Network) Listen() {
 		log.Fatal(err)
 		return
 	}
+
+	network.incomingDataLock.Lock()
 	network.incomingDataSocket = socket
+	network.incomingDataLock.Unlock()
 
 	defer socket.Close()
 	go network.incomingDataHandler()
@@ -201,7 +206,9 @@ func (network *Network) Listen() {
 
 func (network *Network) StopListen() {
 	network.quitListenSig <- struct{}{}
+	network.incomingDataLock.Lock()
 	network.incomingDataSocket.Close()
+	network.incomingDataLock.Unlock()
 }
 
 func (network *Network) SendMessageWithResponse(msg NetworkMessage) (response NetworkMessage, timeout bool) {
