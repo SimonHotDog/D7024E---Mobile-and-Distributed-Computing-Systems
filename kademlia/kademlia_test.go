@@ -4,6 +4,7 @@ import (
 	mocks "d7024e/internal/test/mock"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
+	"d7024e/util"
 	"math"
 	"testing"
 
@@ -137,7 +138,40 @@ func TestLookupContactAux(t *testing.T) {
 	}
 }
 
-func TestLookupData(t *testing.T) {
+func TestLookupDataSucces(t *testing.T) {
+	expectedData := "data"
+	expectedDataHash := util.Hash([]byte(expectedData))
+	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "node0")
+
+	// Create nodes
+	nodeA := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")
+
+	// Create network messages
+	nodeAFindNode_Request := network.NetworkMessage{ID: 1}
+	nodeAFindNode_Response := network.NetworkMessage{ID: 2, Contacts: []routing.Contact{}}
+	nodeAFindValue_Request := network.NetworkMessage{ID: 3}
+	nodeAFindValue_Response := network.NetworkMessage{ID: 4, Body: expectedData}
+
+	// Setup mocks
+	networkMock := new(mocks.NetworkMockObject)
+	routingMock := new(mocks.RoutingTableMockObject)
+	networkMock.On("GetMe").Return(&me)
+	networkMock.On("GetRoutingTable").Return(routingMock)
+	routingMock.On("FindClosestContacts", mock.Anything, mock.Anything).Return([]routing.Contact{nodeA})
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_NODE, mock.Anything, mock.Anything, mock.Anything, expectedDataHash, mock.Anything).Return(&nodeAFindNode_Request)   // FindNode
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_VALUE, mock.Anything, mock.Anything, expectedDataHash, mock.Anything, mock.Anything).Return(&nodeAFindValue_Request) // FindValue
+	networkMock.On("SendMessageWithResponse", nodeAFindNode_Request).Return(nodeAFindNode_Response, false)
+	networkMock.On("SendMessageWithResponse", nodeAFindValue_Request).Return(nodeAFindValue_Response, false)
+
+	// Run test
+	kademlia := NewKademlia(&me, networkMock, nil)
+	actualData, actualContact := kademlia.LookupData(expectedDataHash)
+
+	assert.Equal(t, expectedData, string(actualData))
+	assert.Equal(t, nodeA.ID, actualContact.ID)
+}
+
+func TestLookupDataNotFound(t *testing.T) {
 	t.Skip("Not implemented")
 }
 
