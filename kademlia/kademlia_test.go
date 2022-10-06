@@ -171,8 +171,44 @@ func TestLookupDataSucces(t *testing.T) {
 	assert.Equal(t, nodeA.ID, actualContact.ID)
 }
 
-func TestLookupDataNotFound(t *testing.T) {
+func TestLookupDataTimeout(t *testing.T) {
 	t.Skip("Not implemented")
+}
+
+func TestLookupDataNotFound(t *testing.T) {
+	var expectedData []byte = nil
+	var expectedContact *routing.Contact = nil
+
+	requestedData := "data"
+	requestedDataHash := util.Hash([]byte(requestedData))
+	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "node0")
+
+	// Create nodes
+	nodeA := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")
+
+	// Create network messages
+	nodeAFindNode_Request := network.NetworkMessage{ID: 1}
+	nodeAFindNode_Response := network.NetworkMessage{ID: 2, Contacts: []routing.Contact{}}
+	nodeAFindValue_Request := network.NetworkMessage{ID: 3}
+	nodeAFindValue_Response := network.NetworkMessage{ID: 4, Body: ""}
+
+	// Setup mocks
+	networkMock := new(mocks.NetworkMockObject)
+	routingMock := new(mocks.RoutingTableMockObject)
+	networkMock.On("GetMe").Return(&me)
+	networkMock.On("GetRoutingTable").Return(routingMock)
+	routingMock.On("FindClosestContacts", mock.Anything, mock.Anything).Return([]routing.Contact{nodeA})
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_NODE, mock.Anything, mock.Anything, mock.Anything, requestedDataHash, mock.Anything).Return(&nodeAFindNode_Request)   // FindNode
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_VALUE, mock.Anything, mock.Anything, requestedDataHash, mock.Anything, mock.Anything).Return(&nodeAFindValue_Request) // FindValue
+	networkMock.On("SendMessageWithResponse", nodeAFindNode_Request).Return(nodeAFindNode_Response, false)
+	networkMock.On("SendMessageWithResponse", nodeAFindValue_Request).Return(nodeAFindValue_Response, false)
+
+	// Run test
+	kademlia := NewKademlia(&me, networkMock, nil)
+	actualData, actualContact := kademlia.LookupData(requestedDataHash)
+
+	assert.Equal(t, expectedData, actualData)
+	assert.Equal(t, expectedContact, actualContact)
 }
 
 func TestStore(t *testing.T) {
