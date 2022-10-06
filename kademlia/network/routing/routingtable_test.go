@@ -3,6 +3,8 @@ package routing
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRoutingTable(t *testing.T) {
@@ -36,4 +38,36 @@ func TestAddMeContact(t *testing.T) {
 			t.Errorf("Expected %v, got %v", expected, actual)
 		}
 	})
+}
+
+func TestNodes(t *testing.T) {
+	me := NewContact(NewKademliaID("ABC0000000000000000000000000000000000000"), "me")
+	nodeA := NewContact(NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")
+	nodeB := NewContact(NewKademliaID("0000000000000000000000000000000000000007"), "nodeB")
+	nodeC := NewContact(NewKademliaID("0000000000000000000000000000000000000003"), "nodeC")
+	nodeD := NewContact(NewKademliaID("0000000000000000000000000000000000000001"), "nodeD")
+
+	expected := []Contact{nodeD, nodeC, nodeB, nodeA}
+
+	rt := NewRoutingTable(me)
+	rt.AddContact(nodeA)
+	rt.AddContact(nodeB)
+	rt.AddContact(nodeC)
+	rt.AddContact(nodeD)
+	actual := rt.Nodes()
+
+	for _, contact := range expected {
+		assert.Contains(t, actual, contact)
+	}
+}
+
+func TestNodesWhenEmpty(t *testing.T) {
+	me := NewContact(NewKademliaID("ABC0000000000000000000000000000000000000"), "me")
+
+	expectedNodesLen := 0
+
+	rt := NewRoutingTable(me)
+	actualNodesLen := len(rt.Nodes())
+
+	assert.Equal(t, expectedNodesLen, actualNodesLen)
 }

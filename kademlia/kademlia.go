@@ -73,6 +73,8 @@ func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contact
 			if candidate != nil && candidate.Checked {
 				// Already checked
 				return
+			} else {
+				cl.Add(contact)
 			}
 
 			channel := make(chan []routing.Contact, 1)
@@ -99,10 +101,8 @@ func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contact
 
 // send lookup message to closest nodes
 func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
-
-	stringToByte := []byte(hash)
-
-	contacts := kademlia.LookupContact((*routing.KademliaID)(stringToByte))
+	kademliaIdFromHash := routing.NewKademliaID(hash)
+	contacts := kademlia.LookupContact(kademliaIdFromHash)
 
 	for _, contact := range contacts { // for each of the <=5 contacts found...
 		//fmt.Println(" trying to find data on node ", contact.ID)
