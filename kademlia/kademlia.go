@@ -48,6 +48,7 @@ func (kademlia *Kademlia) LookupContact(targetID *routing.KademliaID) []routing.
 	candidateList := NewCandidateList(targetID, K)
 	kClosestContacts := kademlia.network.GetRoutingTable().FindClosestContacts(targetID, K)
 
+	candidateList.AddMultiple(kClosestContacts)
 	kademlia.lookupContactAux(targetID, kClosestContacts, candidateList)
 
 	contacts := make([]routing.Contact, candidateList.Len())
@@ -73,8 +74,6 @@ func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contact
 			if candidate != nil && candidate.Checked {
 				// Already checked
 				return
-			} else {
-				cl.Add(contact)
 			}
 
 			channel := make(chan []routing.Contact, 1)
