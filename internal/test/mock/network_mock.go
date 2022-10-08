@@ -2,10 +2,10 @@ package mock
 
 import (
 	"d7024e/internal/test/mock/util"
+	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
 
-	cmap "github.com/orcaman/concurrent-map/v2"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -24,9 +24,9 @@ func (net *NetworkMockObject) GetRoutingTable() routing.IRoutingTable {
 	return util.GetPointerOrNil[RoutingTableMockObject](args, 0)
 }
 
-func (net *NetworkMockObject) GetDatastore() *cmap.ConcurrentMap[[]byte] {
+func (net *NetworkMockObject) GetDatastore() datastore.IDataStore {
 	args := net.Called()
-	return util.GetPointerOrNil[cmap.ConcurrentMap[[]byte]](args, 0)
+	return util.GetPointerOrNil[DataStoreMockObject](args, 0)
 }
 
 func (net *NetworkMockObject) NewNetworkMessage(

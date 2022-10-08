@@ -2,10 +2,10 @@ package mock
 
 import (
 	"d7024e/internal/test/mock/util"
+	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
 
-	cmap "github.com/orcaman/concurrent-map/v2"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -22,9 +22,9 @@ func (k KademliaMockObject) GetNetwork() network.INetwork {
 	args := k.Called()
 	return util.GetPointerOrNil[NetworkMockObject](args, 0)
 }
-func (k KademliaMockObject) GetDataStore() *cmap.ConcurrentMap[[]byte] {
+func (k KademliaMockObject) GetDataStore() datastore.IDataStore {
 	args := k.Called()
-	return util.GetPointerOrNil[cmap.ConcurrentMap[[]byte]](args, 0)
+	return util.GetPointerOrNil[DataStoreMockObject](args, 0)
 }
 
 func (k KademliaMockObject) LookupContact(targetID *routing.KademliaID) []routing.Contact {
