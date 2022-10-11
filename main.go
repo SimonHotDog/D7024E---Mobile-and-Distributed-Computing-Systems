@@ -6,6 +6,7 @@ import (
 	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
+	"d7024e/util"
 	"flag"
 	"io"
 	"log"
@@ -24,7 +25,8 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
-	datastore := datastore.NewDataStore(3600)
+	timeprovider := &util.TimeProvider{}
+	datastore := datastore.NewDataStore(time.Hour, nil, timeprovider)
 	bootstrap := routing.NewContact(nil, *bootstrapAddress)
 	network, me := network.NewNetwork(*port, datastore)
 	context := kademlia.NewKademlia(me, network, datastore)

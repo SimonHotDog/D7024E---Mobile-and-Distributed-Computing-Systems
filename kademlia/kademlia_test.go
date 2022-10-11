@@ -8,6 +8,7 @@ import (
 	"d7024e/util"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +17,7 @@ import (
 func TestGetters(t *testing.T) {
 	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "node0")
 	networkMock := new(mocks.NetworkMockObject)
-	datastore := datastore.NewDataStore(3600)
+	datastore := datastore.NewDataStore(time.Hour, nil, nil)
 	kademlia := NewKademlia(&me, networkMock, datastore)
 
 	assert.Equal(t, kademlia.GetMe(), &me)

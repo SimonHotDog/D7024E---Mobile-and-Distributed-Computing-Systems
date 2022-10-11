@@ -26,6 +26,8 @@ func (store *DataStoreMockObject) Remove(key string) (value []byte, ok bool) {
 	return util.GetArrayOrNil[byte](args, 0), args.Bool(1)
 }
 
+func (store *DataStoreMockObject) RemoveExpired() {}
+
 func (store *DataStoreMockObject) Refresh(key string) (ok bool) {
 	args := store.Called()
 	return args.Bool(0)
