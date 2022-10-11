@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
 	"d7024e/kademlia/network/rpc"
@@ -8,15 +9,13 @@ import (
 	"errors"
 	"log"
 	"sync"
-
-	cmap "github.com/orcaman/concurrent-map/v2"
 )
 
 type IKademlia interface {
 	// Get me
 	GetMe() *routing.Contact
 	GetNetwork() network.INetwork
-	GetDataStore() *cmap.ConcurrentMap[[]byte]
+	GetDataStore() datastore.IDataStore
 
 	LookupContact(targetID *routing.KademliaID) []routing.Contact
 	LookupData(hash string) ([]byte, *routing.Contact)
@@ -27,21 +26,21 @@ type IKademlia interface {
 type Kademlia struct {
 	me        *routing.Contact
 	network   network.INetwork
-	dataStore *cmap.ConcurrentMap[[]byte]
+	dataStore datastore.IDataStore
 }
 
 // Hyperparameters
 const K int = 20 //k closest
 const A int = 3  //alpha, 1 is effectively no concurrency
 
-func NewKademlia(me *routing.Contact, network network.INetwork, datastore *cmap.ConcurrentMap[[]byte]) *Kademlia {
+func NewKademlia(me *routing.Contact, network network.INetwork, datastore datastore.IDataStore) *Kademlia {
 	return &Kademlia{me, network, datastore}
 }
 
 // Getters
-func (kademlia *Kademlia) GetMe() *routing.Contact                   { return kademlia.me }
-func (kademlia *Kademlia) GetNetwork() network.INetwork              { return kademlia.network }
-func (kademlia *Kademlia) GetDataStore() *cmap.ConcurrentMap[[]byte] { return kademlia.dataStore }
+func (kademlia *Kademlia) GetMe() *routing.Contact            { return kademlia.me }
+func (kademlia *Kademlia) GetNetwork() network.INetwork       { return kademlia.network }
+func (kademlia *Kademlia) GetDataStore() datastore.IDataStore { return kademlia.dataStore }
 
 // Lookup contacts
 func (kademlia *Kademlia) LookupContact(targetID *routing.KademliaID) []routing.Contact {

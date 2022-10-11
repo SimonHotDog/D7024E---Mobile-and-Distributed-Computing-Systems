@@ -2,13 +2,14 @@ package kademlia
 
 import (
 	mocks "d7024e/internal/test/mock"
+	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
 	"d7024e/util"
 	"math"
 	"testing"
+	"time"
 
-	cmap "github.com/orcaman/concurrent-map/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -16,12 +17,12 @@ import (
 func TestGetters(t *testing.T) {
 	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "node0")
 	networkMock := new(mocks.NetworkMockObject)
-	datastore := cmap.New[[]byte]()
-	kademlia := NewKademlia(&me, networkMock, &datastore)
+	datastore := datastore.NewDataStore(time.Hour, nil, nil)
+	kademlia := NewKademlia(&me, networkMock, datastore)
 
 	assert.Equal(t, kademlia.GetMe(), &me)
 	assert.Equal(t, kademlia.GetNetwork(), networkMock)
-	assert.Equal(t, kademlia.GetDataStore(), &datastore)
+	assert.Equal(t, kademlia.GetDataStore(), datastore)
 }
 
 func TestLookupContact(t *testing.T) {

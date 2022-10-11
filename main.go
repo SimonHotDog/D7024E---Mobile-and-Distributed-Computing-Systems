@@ -3,8 +3,10 @@ package main
 import (
 	"d7024e/cli"
 	"d7024e/kademlia"
+	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
+	"d7024e/util"
 	"d7024e/rest"
 	"flag"
 	"io"
@@ -12,8 +14,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-
-	cmap "github.com/orcaman/concurrent-map/v2"
 )
 
 func init() {
@@ -26,10 +26,11 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
-	datastore := cmap.New[[]byte]()
+	timeprovider := &util.TimeProvider{}
+	datastore := datastore.NewDataStore(time.Hour, nil, timeprovider)
 	bootstrap := routing.NewContact(nil, *bootstrapAddress)
-	network, me := network.NewNetwork(*port, &datastore)
-	context := kademlia.NewKademlia(me, network, &datastore)
+	network, me := network.NewNetwork(*port, datastore)
+	context := kademlia.NewKademlia(me, network, datastore)
 	cli := cli.NewCli(os.Stdout, os.Stdin, context)
 
 	go network.Listen() // TODO: Notify it is actually listening

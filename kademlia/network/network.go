@@ -1,6 +1,7 @@
 package network
 
 import (
+	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network/routing"
 	"d7024e/util"
 	"encoding/json"
@@ -36,7 +37,7 @@ const (
 type INetwork interface {
 	GetMe() *routing.Contact
 	GetRoutingTable() routing.IRoutingTable
-	GetDatastore() *cmap.ConcurrentMap[[]byte]
+	GetDatastore() datastore.IDataStore
 
 	// Create a new network instance.
 	//
@@ -86,7 +87,7 @@ type INetwork interface {
 type Network struct {
 	me           *routing.Contact
 	routingtable routing.IRoutingTable
-	datastore    *cmap.ConcurrentMap[[]byte]
+	datastore    datastore.IDataStore
 
 	incomingData       chan []byte
 	outgoingMsg        chan NetworkMessage
@@ -119,7 +120,7 @@ type NetworkMessage struct {
 //
 //	A new network instance and a contact that will be used when communicating
 //	with other nodes.
-func NewNetwork(port int, datastore *cmap.ConcurrentMap[[]byte]) (*Network, *routing.Contact) {
+func NewNetwork(port int, datastore datastore.IDataStore) (*Network, *routing.Contact) {
 	myAddress := fmt.Sprintf("%s:%d", GetOutboundIP(), port)
 	me := routing.NewContact(routing.NewRandomKademliaID(), myAddress)
 
@@ -146,7 +147,7 @@ func (network *Network) GetRoutingTable() routing.IRoutingTable {
 	return network.routingtable
 }
 
-func (network *Network) GetDatastore() *cmap.ConcurrentMap[[]byte] {
+func (network *Network) GetDatastore() datastore.IDataStore {
 	return network.datastore
 }
 
