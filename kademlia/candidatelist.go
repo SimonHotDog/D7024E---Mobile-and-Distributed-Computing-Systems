@@ -45,8 +45,8 @@ func (cl *CandidateList) Add(contact routing.Contact) {
 	contact.CalcDistance(cl.targetID)
 	candidate := Candidate{contact, false, *contact.Distance}
 
-	cl.lock.RLock()
-	defer cl.lock.RUnlock()
+	cl.lock.Lock()
+	defer cl.lock.Unlock()
 	if len(cl.candidates) == cl.Limit {
 		if contact.Less(&cl.candidates[cl.Limit-1].Contact) {
 			cl.candidates[cl.Limit-1] = candidate
@@ -61,8 +61,8 @@ func (cl *CandidateList) Add(contact routing.Contact) {
 }
 
 func (cl *CandidateList) Get(id *routing.KademliaID) *Candidate {
-	cl.lock.Lock()
-	defer cl.lock.Unlock()
+	cl.lock.RLock()
+	defer cl.lock.RUnlock()
 	for i := 0; i < len(cl.candidates); i++ {
 		if cl.candidates[i].Contact.ID.Equals(id) {
 			return &cl.candidates[i]
@@ -77,19 +77,20 @@ func (cl *CandidateList) GetAll() []Candidate {
 
 // removed candidate from candidate list
 func (cl *CandidateList) Remove(id *routing.KademliaID) {
-	cl.lock.RLock()
+	cl.lock.Lock()
+	defer cl.lock.Unlock()
+
 	for i := 0; i < len(cl.candidates); i++ {
 		if cl.candidates[i].Contact.ID.Equals(id) {
 			cl.candidates = append(cl.candidates[:i], cl.candidates[i+1:]...)
 		}
 	}
-	cl.lock.RUnlock()
 }
 
 // Checks if candidate exists
 func (cl *CandidateList) Exists(id *routing.KademliaID) bool {
-	cl.lock.Lock()
-	defer cl.lock.Unlock()
+	cl.lock.RLock()
+	defer cl.lock.RUnlock()
 	for _, candidate := range cl.candidates {
 		if candidate.Contact.ID.Equals(id) {
 			return true
@@ -105,8 +106,8 @@ func (cl *CandidateList) Len() int {
 
 // Mark candidate as checked
 func (cl *CandidateList) Check(id *routing.KademliaID) {
-	cl.lock.RLock()
-	defer cl.lock.RUnlock()
+	cl.lock.Lock()
+	defer cl.lock.Unlock()
 	for i, candidate := range cl.candidates {
 		if candidate.Contact.ID.Equals(id) {
 			cl.candidates[i].Checked = true
