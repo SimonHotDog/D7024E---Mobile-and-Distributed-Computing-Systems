@@ -12,7 +12,6 @@ func TestFlipSenderTarget(t *testing.T) {
 		expectedSender := *me
 		expectedTarget := routing.NewContact(routing.NewRandomKademliaID(), "127.0.0.1")
 		netmsg := NetworkMessage{
-			ID:     0,
 			RPC:    1,
 			Sender: &expectedTarget,
 			Target: &expectedSender,
