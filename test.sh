@@ -1,6 +1,6 @@
 #!/bin/bash
 
-go test -coverpkg=./... -coverprofile=coverage.out ./...
+go test -coverpkg=./... --race -coverprofile=coverage.out ./...
 
 # Remove all internal test utilities that should not be tested
 sed -i "/d7024e\/internal\/test/d" "coverage.out"
