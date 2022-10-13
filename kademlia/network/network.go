@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"sync"
 	"time"
-
-	cmap "github.com/orcaman/concurrent-map/v2"
 )
 
 const (
@@ -22,10 +21,7 @@ const (
 	MESSAGE_RPC_FIND_VALUE = 4
 
 	// RPC response
-	// SUGGESTION Replace specific response types with a general MESSAGE_RESPONSE
-	MESSAGE_PONG      = 5
-	MESSAGE_NODE_LIST = 6
-	MESSAGE_VALUE     = 7
+	MESSAGE_RESPONSE = 10
 )
 
 const (
@@ -90,8 +86,6 @@ type Network struct {
 	datastore    datastore.IDataStore
 
 	incomingData       chan []byte
-	outgoingMsg        chan NetworkMessage
-	waiters            cmap.ConcurrentMap[chan NetworkMessage]
 	messageCounter     *util.Counter
 	port               int
 	quitListenSig      chan struct{}
@@ -100,7 +94,6 @@ type Network struct {
 }
 
 type NetworkMessage struct {
-	ID         int64
 	RPC        int
 	Sender     *routing.Contact
 	Target     *routing.Contact
@@ -129,13 +122,10 @@ func NewNetwork(port int, datastore datastore.IDataStore) (*Network, *routing.Co
 		routingtable:   routing.NewRoutingTable(me),
 		datastore:      datastore,
 		incomingData:   make(chan []byte),
-		outgoingMsg:    make(chan NetworkMessage),
 		messageCounter: util.MakeCounter(),
 		port:           port,
 		quitListenSig:  make(chan struct{}, 1),
-		waiters:        cmap.New[chan NetworkMessage](),
 	}
-	go net.messageSender()
 	return &net, &me
 }
 
@@ -160,7 +150,6 @@ func (network *Network) NewNetworkMessage(
 	contacts []routing.Contact,
 ) *NetworkMessage {
 	return &NetworkMessage{
-		ID:         network.messageCounter.GetNext(),
 		RPC:        rpc,
 		Sender:     sender,
 		Target:     target,
@@ -187,7 +176,6 @@ func (network *Network) Listen() {
 	network.incomingDataLock.Unlock()
 
 	defer socket.Close()
-	go network.incomingDataHandler()
 
 	for {
 		buf := make([]byte, NETWORK_INCOMING_BUFFER)
@@ -196,12 +184,11 @@ func (network *Network) Listen() {
 			return
 		default:
 		}
-		// len, _, udpError := socket.ReadFromUDP(buf)
-		len, udpError := socket.Read(buf)
+		len, remote, udpError := socket.ReadFromUDP(buf)
 		if udpError != nil {
 			log.Println(udpError)
 		}
-		network.incomingData <- buf[:len]
+		go network.incomingDataHandler(remote, buf[:len])
 	}
 }
 
@@ -213,73 +200,53 @@ func (network *Network) StopListen() {
 }
 
 func (network *Network) SendMessageWithResponse(msg NetworkMessage) (response NetworkMessage, timeout bool) {
-	network.waiters.Set(fmt.Sprint(msg.ID), make(chan NetworkMessage, 1))
-	defer network.waiters.Remove(fmt.Sprint(msg.ID))
-
-	network.outgoingMsg <- msg
-
-	waitchannel, _ := network.waiters.Get(fmt.Sprint(msg.ID))
-	select {
-	case response := <-waitchannel:
-		return response, false
-	case <-time.After(NETWORK_REQUEST_TIMEOUT):
-		return NetworkMessage{}, true
+	udpAddr, _ := net.ResolveUDPAddr("udp", msg.Target.Address)
+	res, err := network.sendRequest(udpAddr, msg, true)
+	if err == nil {
+		return *res, false
 	}
+	return *new(NetworkMessage), true
 }
 
 func (network *Network) SendMessage(msg NetworkMessage) {
-	network.outgoingMsg <- msg
+	udpAddr, _ := net.ResolveUDPAddr("udp", msg.Target.Address)
+	network.sendRequest(udpAddr, msg, false)
 }
 
-// Process incoming network data in the 'network.incomingData' channel
-func (network *Network) incomingDataHandler() {
-	for data := range network.incomingData {
-		msg, err := deserializeMessage(data)
-		if err != nil {
-			log.Printf("Deserialize error: %s\n", err)
-			continue
-		}
-
-		log.Printf("Message (%d) from %s\n", msg.RPC, msg.Sender.String())
-
-		network.messageHandler(msg)
-	}
-}
-
-// Take actions on a network message
-func (network *Network) messageHandler(msg *NetworkMessage) {
-	network.routingtable.AddContact(*msg.Sender)
-
-	if c, ok := network.waiters.Get(fmt.Sprint(msg.ID)); ok {
-		c <- *msg
-		network.waiters.Remove(fmt.Sprint(msg.ID))
+// Process incoming network data
+func (network *Network) incomingDataHandler(senderAddr *net.UDPAddr, data []byte) {
+	msg, err := deserializeMessage(data)
+	if err != nil {
+		log.Printf("Deserialize error: %s\n", err)
 		return
 	}
 
+	log.Printf("Message (%d) from %s\n", msg.RPC, msg.Sender.String())
+
+	network.messageHandler(senderAddr, msg)
+}
+
+// Take actions on a network message
+func (network *Network) messageHandler(senderAddr *net.UDPAddr, msg *NetworkMessage) {
+	network.routingtable.AddContact(*msg.Sender)
+
 	switch msg.RPC {
 	case MESSAGE_RPC_PING:
-		msg.RPC = MESSAGE_PONG
 		network.generateReturnMessage(msg)
-		network.SendMessage(*msg)
+		network.sendResponse(senderAddr, *msg)
 	case MESSAGE_RPC_STORE:
-		network.datastore.Set(msg.BodyDigest, []byte(msg.Body))
-		_, ok := network.datastore.Get(msg.BodyDigest)
-		if ok {
-			msg.Body = "1"
-		} else {
-			msg.Body = "0"
-		}
-		msg.RPC = MESSAGE_VALUE
+		ok := network.datastore.Set(msg.BodyDigest, []byte(msg.Body))
+
+		msg.Body = strconv.FormatBool(ok)
 		network.generateReturnMessage(msg)
-		network.SendMessage(*msg)
+		network.sendResponse(senderAddr, *msg)
 	case MESSAGE_RPC_FIND_NODE:
 		contactId := routing.NewKademliaID(msg.Body)
 		nodes := network.routingtable.FindClosestContacts(contactId, 20) // TODO: Get count value (20) from some parameter
 
-		msg.RPC = MESSAGE_NODE_LIST
 		msg.Contacts = nodes
 		network.generateReturnMessage(msg)
-		network.SendMessage(*msg)
+		network.sendResponse(senderAddr, *msg)
 	case MESSAGE_RPC_FIND_VALUE:
 		value, exists := network.datastore.Get(msg.BodyDigest)
 		if exists {
@@ -288,14 +255,9 @@ func (network *Network) messageHandler(msg *NetworkMessage) {
 			log.Printf("Data not found on node %s\n", msg.Target.String())
 		}
 
-		msg.RPC = MESSAGE_VALUE
 		msg.Body = string(value)
 		network.generateReturnMessage(msg)
-		network.SendMessage(*msg)
-	case MESSAGE_PONG:
-	case MESSAGE_NODE_LIST:
-	case MESSAGE_VALUE:
-		// TODO: Implement message response
+		network.sendResponse(senderAddr, *msg)
 	}
 }
 
@@ -320,18 +282,52 @@ func (network *Network) generateReturnMessage(msg *NetworkMessage) {
 	returnContact := *msg.Sender
 	msg.Target = &returnContact
 	msg.Sender = network.me
+	msg.RPC = MESSAGE_RESPONSE
 }
 
-func (network *Network) messageSender() {
-	for msg := range network.outgoingMsg {
-		conn, err := net.Dial("udp", msg.Target.Address)
-		if err != nil {
-			log.Printf("UDP send error: %v", err)
-			continue
-		}
-		bytes := serializeMessage(msg)
-		conn.Write(bytes)
-		conn.Close()
-		log.Printf("Message (%d) sent to %s\n", msg.RPC, msg.Target.String())
+func (network *Network) sendResponse(addr *net.UDPAddr, msg NetworkMessage) {
+	msg_bytes := serializeMessage(msg)
+	_, err := network.incomingDataSocket.WriteToUDP(msg_bytes, addr)
+	if err != nil {
+		log.Printf("Send response error: %v\n", err)
 	}
+}
+
+func (network *Network) sendRequest(recipient *net.UDPAddr, msg NetworkMessage, waitResponse bool) (*NetworkMessage, error) {
+	log.Printf("Message sent to %s\n", recipient.String())
+	conn, err := net.Dial("udp", recipient.String())
+	if err != nil {
+		log.Printf("UDP connection error: %v", err)
+		return nil, err
+	}
+	defer conn.Close()
+
+	// Send message
+	bytes := serializeMessage(msg)
+	_, err = conn.Write(bytes)
+	if err != nil {
+		log.Printf("Send request error: %v\n", err)
+		return nil, err
+	}
+	if !waitResponse {
+		return nil, nil
+	}
+
+	// Wait for response
+	conn.SetReadDeadline(time.Now().Add(NETWORK_REQUEST_TIMEOUT))
+	response_buffer := make([]byte, NETWORK_INCOMING_BUFFER)
+	len, err := conn.Read(response_buffer)
+	if err != nil {
+		log.Printf("UDP read error: %v\n", err)
+		return nil, err
+	}
+
+	// Deserialize response
+	response, err := deserializeMessage(response_buffer[:len])
+	if err != nil {
+		log.Printf("Deserialize error: %s\n", err)
+		return nil, err
+	}
+
+	return response, nil
 }

@@ -50,14 +50,14 @@ func TestLookupContact(t *testing.T) {
 	nodeDContacts := []routing.Contact{}
 
 	// Create network message to send from nodeA to nodeB
-	nodeA_Request := network.NetworkMessage{ID: 2}
-	nodeA_Response := network.NetworkMessage{ID: 3, Contacts: nodeAContacts}
-	nodeB_Request := network.NetworkMessage{ID: 4}
-	nodeB_Response := network.NetworkMessage{ID: 5, Contacts: nodeBContacts}
-	nodeC_Request := network.NetworkMessage{ID: 6}
-	nodeC_Response := network.NetworkMessage{ID: 7, Contacts: nodeCContacts}
-	nodeD_Request := network.NetworkMessage{ID: 8}
-	nodeD_Response := network.NetworkMessage{ID: 9, Contacts: nodeDContacts}
+	nodeA_Request := network.NetworkMessage{BodyDigest: "2"}
+	nodeA_Response := network.NetworkMessage{BodyDigest: "3", Contacts: nodeAContacts}
+	nodeB_Request := network.NetworkMessage{BodyDigest: "4"}
+	nodeB_Response := network.NetworkMessage{BodyDigest: "5", Contacts: nodeBContacts}
+	nodeC_Request := network.NetworkMessage{BodyDigest: "6"}
+	nodeC_Response := network.NetworkMessage{BodyDigest: "7", Contacts: nodeCContacts}
+	nodeD_Request := network.NetworkMessage{BodyDigest: "8"}
+	nodeD_Response := network.NetworkMessage{BodyDigest: "9", Contacts: nodeDContacts}
 
 	// Setup mocks
 	networkMock := new(mocks.NetworkMockObject)
@@ -110,10 +110,10 @@ func TestLookupContactAux(t *testing.T) {
 	candidateList.Check(nodeA.ID)
 
 	// Create network message to send from nodeA to nodeB
-	nodeA_Request := network.NetworkMessage{ID: 2}
-	nodeA_Response := network.NetworkMessage{ID: 3, Contacts: nodeAContacts}
-	nodeB_Request := network.NetworkMessage{ID: 4}
-	nodeB_Response := network.NetworkMessage{ID: 5, Contacts: nodeBContacts}
+	nodeA_Request := network.NetworkMessage{BodyDigest: "2"}
+	nodeA_Response := network.NetworkMessage{BodyDigest: "3", Contacts: nodeAContacts}
+	nodeB_Request := network.NetworkMessage{BodyDigest: "4"}
+	nodeB_Response := network.NetworkMessage{BodyDigest: "5", Contacts: nodeBContacts}
 
 	// Setup mocks
 	networkMock := new(mocks.NetworkMockObject)
@@ -148,10 +148,10 @@ func TestLookupDataSucces(t *testing.T) {
 	nodeA := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")
 
 	// Create network messages
-	nodeAFindNode_Request := network.NetworkMessage{ID: 1}
-	nodeAFindNode_Response := network.NetworkMessage{ID: 2, Contacts: []routing.Contact{}}
-	nodeAFindValue_Request := network.NetworkMessage{ID: 3}
-	nodeAFindValue_Response := network.NetworkMessage{ID: 4, Body: expectedData}
+	nodeAFindNode_Request := network.NetworkMessage{BodyDigest: "1"}
+	nodeAFindNode_Response := network.NetworkMessage{BodyDigest: "2", Contacts: []routing.Contact{}}
+	nodeAFindValue_Request := network.NetworkMessage{BodyDigest: "3"}
+	nodeAFindValue_Response := network.NetworkMessage{BodyDigest: "4", Body: expectedData}
 
 	// Setup mocks
 	networkMock := new(mocks.NetworkMockObject)
@@ -188,10 +188,10 @@ func TestLookupDataNotFound(t *testing.T) {
 	nodeA := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")
 
 	// Create network messages
-	nodeAFindNode_Request := network.NetworkMessage{ID: 1}
-	nodeAFindNode_Response := network.NetworkMessage{ID: 2, Contacts: []routing.Contact{}}
-	nodeAFindValue_Request := network.NetworkMessage{ID: 3}
-	nodeAFindValue_Response := network.NetworkMessage{ID: 4, Body: ""}
+	nodeAFindNode_Request := network.NetworkMessage{BodyDigest: "1"}
+	nodeAFindNode_Response := network.NetworkMessage{BodyDigest: "2", Contacts: []routing.Contact{}}
+	nodeAFindValue_Request := network.NetworkMessage{BodyDigest: "3"}
+	nodeAFindValue_Response := network.NetworkMessage{BodyDigest: "4", Body: ""}
 
 	// Setup mocks
 	networkMock := new(mocks.NetworkMockObject)
