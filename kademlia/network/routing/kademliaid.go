@@ -21,6 +21,10 @@ func init() {
 func NewKademliaID(data string) *KademliaID {
 	decoded, _ := hex.DecodeString(data)
 
+	if len(decoded) < IDLength {
+		return nil
+	}
+
 	newKademliaID := KademliaID{}
 	for i := 0; i < IDLength; i++ {
 		newKademliaID[i] = decoded[i]
