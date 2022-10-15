@@ -15,10 +15,11 @@ import (
 
 const (
 	// RPC
-	MESSAGE_RPC_PING       = 1
-	MESSAGE_RPC_STORE      = 2
-	MESSAGE_RPC_FIND_NODE  = 3
-	MESSAGE_RPC_FIND_VALUE = 4
+	MESSAGE_RPC_PING         = 1
+	MESSAGE_RPC_STORE        = 2
+	MESSAGE_RPC_FIND_NODE    = 3
+	MESSAGE_RPC_FIND_VALUE   = 4
+	MESSAGE_RPC_DATA_REFRESH = 5
 
 	// RPC response
 	MESSAGE_RESPONSE = 10
@@ -258,6 +259,9 @@ func (network *Network) messageHandler(senderAddr *net.UDPAddr, msg *NetworkMess
 		msg.Body = string(value)
 		network.generateReturnMessage(msg)
 		network.sendResponse(senderAddr, *msg)
+	case MESSAGE_RPC_DATA_REFRESH:
+		keyToRefresh := msg.BodyDigest
+		network.datastore.Refresh(keyToRefresh)
 	}
 }
 

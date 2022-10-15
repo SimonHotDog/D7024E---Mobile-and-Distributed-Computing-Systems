@@ -152,6 +152,7 @@ func TestLookupDataSucces(t *testing.T) {
 	nodeAFindNode_Response := network.NetworkMessage{BodyDigest: "2", Contacts: []routing.Contact{}}
 	nodeAFindValue_Request := network.NetworkMessage{BodyDigest: "3"}
 	nodeAFindValue_Response := network.NetworkMessage{BodyDigest: "4", Body: expectedData}
+	rpcRefresh_Request := network.NetworkMessage{RPC: network.MESSAGE_RPC_DATA_REFRESH}
 
 	// Setup mocks
 	networkMock := new(mocks.NetworkMockObject)
@@ -161,6 +162,7 @@ func TestLookupDataSucces(t *testing.T) {
 	routingMock.On("FindClosestContacts", mock.Anything, mock.Anything).Return([]routing.Contact{nodeA})
 	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_NODE, mock.Anything, mock.Anything, mock.Anything, expectedDataHash, mock.Anything).Return(&nodeAFindNode_Request)   // FindNode
 	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_VALUE, mock.Anything, mock.Anything, expectedDataHash, mock.Anything, mock.Anything).Return(&nodeAFindValue_Request) // FindValue
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_DATA_REFRESH, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&rpcRefresh_Request)
 	networkMock.On("SendMessageWithResponse", nodeAFindNode_Request).Return(nodeAFindNode_Response, false)
 	networkMock.On("SendMessageWithResponse", nodeAFindValue_Request).Return(nodeAFindValue_Response, false)
 
@@ -192,6 +194,7 @@ func TestLookupDataNotFound(t *testing.T) {
 	nodeAFindNode_Response := network.NetworkMessage{BodyDigest: "2", Contacts: []routing.Contact{}}
 	nodeAFindValue_Request := network.NetworkMessage{BodyDigest: "3"}
 	nodeAFindValue_Response := network.NetworkMessage{BodyDigest: "4", Body: ""}
+	rpcRefresh_Request := network.NetworkMessage{RPC: network.MESSAGE_RPC_DATA_REFRESH}
 
 	// Setup mocks
 	networkMock := new(mocks.NetworkMockObject)
@@ -201,6 +204,7 @@ func TestLookupDataNotFound(t *testing.T) {
 	routingMock.On("FindClosestContacts", mock.Anything, mock.Anything).Return([]routing.Contact{nodeA})
 	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_NODE, mock.Anything, mock.Anything, mock.Anything, requestedDataHash, mock.Anything).Return(&nodeAFindNode_Request)   // FindNode
 	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_VALUE, mock.Anything, mock.Anything, requestedDataHash, mock.Anything, mock.Anything).Return(&nodeAFindValue_Request) // FindValue
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_DATA_REFRESH, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&rpcRefresh_Request)
 	networkMock.On("SendMessageWithResponse", nodeAFindNode_Request).Return(nodeAFindNode_Response, false)
 	networkMock.On("SendMessageWithResponse", nodeAFindValue_Request).Return(nodeAFindValue_Response, false)
 

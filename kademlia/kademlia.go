@@ -106,9 +106,12 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
 	contacts := kademlia.LookupContact(kademliaIdFromHash)
 
 	for _, contact := range contacts {
+		go rpc.SendRefreshDataMessage(kademlia.network, &contact, hash)
+	}
 
+	for _, contact := range contacts {
 		valuechannel := make(chan string, 1)
-		go rpc.SendLookupMessage(kademlia.network, &contact, hash, valuechannel)
+		go rpc.SendLookupMessage(kademlia.network, &contact, hash, valuechannel) //send FindLocally to each
 		value := <-valuechannel
 		if value != "" {
 			return []byte(value), &contact
