@@ -9,6 +9,7 @@ func GetObjectByHash(context kademlia.IKademlia, args string) (string, error) {
 	if args == "" {
 		return "", errors.New("expected 1 argument, but got 0")
 	}
+
 	cleanHash := RemoveDoubleQuotes(args)
 	value, _ := context.LookupData(cleanHash)
 	if value != nil {

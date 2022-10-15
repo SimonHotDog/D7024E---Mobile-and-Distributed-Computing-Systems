@@ -99,7 +99,8 @@ func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contact
 
 // send lookup message to closest nodes
 func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
-	contacts := kademlia.LookupContact(kademlia.me.ID)
+	kademliaIdFromHash := routing.NewKademliaID(hash)
+	contacts := kademlia.LookupContact(kademliaIdFromHash)
 
 	for _, contact := range contacts {
 
