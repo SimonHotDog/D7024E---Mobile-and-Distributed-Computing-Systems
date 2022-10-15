@@ -14,7 +14,7 @@ func TestPutObjectInStore(t *testing.T) {
 	kademliaMock := new(mocks.KademliaMockObject)
 	kademliaMock.On("Store", mock.Anything).Return(expectedHash, nil)
 
-	actual, err := PutObjectInStore(kademliaMock, "")
+	actual, err := PutObjectInStore(kademliaMock, "myhash")
 	assert.Equal(t, expectedHash, actual)
 	assert.Nil(t, err)
 }
