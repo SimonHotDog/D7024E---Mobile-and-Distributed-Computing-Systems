@@ -99,18 +99,13 @@ func (kademlia *Kademlia) lookupContactAux(targetID *routing.KademliaID, contact
 
 // send lookup message to closest nodes
 func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
-	kademliaIdFromHash := routing.NewKademliaID(hash)
-	contacts := kademlia.LookupContact(kademliaIdFromHash)
+	contacts := kademlia.LookupContact(kademlia.me.ID)
 
-	for _, contact := range contacts { // for each of the <=5 contacts found...
-		//fmt.Println(" trying to find data on node ", contact.ID)
-
-		//kademlia.Network.SendLookup(&contact, hash) //send FindLocally to each
+	for _, contact := range contacts {
 
 		valuechannel := make(chan string, 1)
-		go rpc.SendLookupMessage(kademlia.network, &contact, hash, valuechannel) //send FindLocally to each
+		go rpc.SendLookupMessage(kademlia.network, &contact, hash, valuechannel)
 		value := <-valuechannel
-		//fmt.Printf("Recieved value %v from node %v", value, contact.String())
 		if value != "" {
 			return []byte(value), &contact
 		}
