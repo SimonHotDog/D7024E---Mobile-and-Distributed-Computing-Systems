@@ -20,6 +20,7 @@ const (
 	MESSAGE_RPC_FIND_NODE    = 3
 	MESSAGE_RPC_FIND_VALUE   = 4
 	MESSAGE_RPC_DATA_REFRESH = 5
+	MESSAGE_RPC_DATA_FORGET  = 6
 
 	// RPC response
 	MESSAGE_RESPONSE = 10
@@ -262,6 +263,9 @@ func (network *Network) messageHandler(senderAddr *net.UDPAddr, msg *NetworkMess
 	case MESSAGE_RPC_DATA_REFRESH:
 		keyToRefresh := msg.BodyDigest
 		network.datastore.Refresh(keyToRefresh)
+	case MESSAGE_RPC_DATA_FORGET:
+		keyToForget := msg.BodyDigest
+		network.datastore.Remove(keyToForget)
 	}
 }
 

@@ -220,6 +220,28 @@ func TestStore(t *testing.T) {
 	t.Skip("Not implemented")
 }
 
+func TestForgetData_WithHash_ShouldForgetData(t *testing.T) {
+	dataHash := util.Hash([]byte("data"))
+	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "node0")
+	nodeA := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")
+	forgetData_Request := network.NetworkMessage{BodyDigest: "3"}
+
+	// Setup mocks
+	networkMock := new(mocks.NetworkMockObject)
+	networkMock.On("GetMe").Return(&me)
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_DATA_FORGET, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&forgetData_Request)
+
+	// Run test
+	kademlia := NewKademlia(&me, networkMock, nil)
+	contacts := []routing.Contact{nodeA}
+	err := kademlia.ForgetData(dataHash, contacts)
+	assert.Nil(t, err)
+}
+
+func TestForgetData_WhenHashIsInvalid_ShouldReturnError(t *testing.T) {
+	t.Skip("Not implemented")
+}
+
 func TestJoinNetwork(t *testing.T) {
 	t.Skip("Not implemented")
 }

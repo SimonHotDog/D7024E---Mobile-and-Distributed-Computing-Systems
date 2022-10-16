@@ -46,4 +46,10 @@ func (k KademliaMockObject) Store(data []byte) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (k KademliaMockObject) ForgetData(hash string, contacts []routing.Contact) error {
+	args := k.Called(hash)
+
+	return args.Error(0)
+}
+
 func (k KademliaMockObject) JoinNetwork(contact *routing.Contact) {}

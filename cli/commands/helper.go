@@ -11,6 +11,7 @@ type Command struct {
 
 func AllCommands() []Command {
 	return []Command{
+		{"forget", "[hash]", "Takes a hash and forgets any dataobject associated with it", ForgetObjectInStore},
 		{"get", "[hash]", "Takes a hash and downloads the file from the network.", GetObjectByHash},
 		{"help", "", "Help on ", GetAvaliableCommands},
 		{"put", "[text]", "Uploads a file to the network and returns the hash if succesful.", PutObjectInStore},
