@@ -20,6 +20,7 @@ type IKademlia interface {
 	LookupContact(targetID *routing.KademliaID) []routing.Contact
 	LookupData(hash string) ([]byte, *routing.Contact)
 	Store(data []byte) (string, error)
+	ForgetData(hash string, contacts []routing.Contact) error
 	JoinNetwork(contact *routing.Contact)
 }
 
@@ -143,6 +144,20 @@ func (kademlia *Kademlia) Store(data []byte) (string, error) {
 	}
 	return hashed, nil
 
+}
+
+// Send forget message to specified contacts
+func (kademlia *Kademlia) ForgetData(hash string, contacts []routing.Contact) error {
+	kademliaIdFromHash := routing.NewKademliaID(hash)
+	if kademliaIdFromHash == nil {
+		return errors.New("invalid hash")
+	}
+
+	for _, contact := range contacts {
+		go rpc.SendForgetDataMessage(kademlia.network, &contact, hash)
+	}
+
+	return nil
 }
 
 // Join a kademlia network by through a known node
