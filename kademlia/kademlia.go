@@ -154,7 +154,7 @@ func (kademlia *Kademlia) ForgetData(hash string, contacts []routing.Contact) er
 	}
 
 	for _, contact := range contacts {
-		go rpc.SendForgetDataMessage(kademlia.network, &contact, hash)
+		rpc.SendForgetDataMessage(kademlia.network, &contact, hash)
 	}
 
 	return nil
