@@ -103,6 +103,7 @@ func (store *DataStore) Get(key string) (value []byte, exists bool) {
 	}
 
 	if dataObject.IsExpired(store.time) {
+		store.onExpired(key, dataObject.Value)
 		store._remove(key)
 		return nil, false
 	}
