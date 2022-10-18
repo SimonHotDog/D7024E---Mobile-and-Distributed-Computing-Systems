@@ -105,6 +105,7 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
 		return nil, nil
 	}
 	contacts := kademlia.LookupContact(kademliaIdFromHash)
+	noResponseArray := []*routing.Contact{}
 
 	for _, contact := range contacts {
 		go rpc.SendRefreshDataMessage(kademlia.network, &contact, hash)
@@ -114,7 +115,15 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, *routing.Contact) {
 		valuechannel := make(chan string, 1)
 		go rpc.SendLookupMessage(kademlia.network, &contact, hash, valuechannel) //send FindLocally to each
 		value := <-valuechannel
-		if value != "" {
+		if value == "" {
+			noResponseArray = append(noResponseArray, &contact)
+		} else {
+			if len(noResponseArray) > 0 {
+				lastContact := noResponseArray[len(noResponseArray)-1]
+				log.Printf("Storing at last empty contact with ID:  %v \n", lastContact.ID)
+				go rpc.SendStoreMessage(kademlia.network, lastContact, hash, []byte(value))
+			}
+
 			return []byte(value), &contact
 		}
 	}
