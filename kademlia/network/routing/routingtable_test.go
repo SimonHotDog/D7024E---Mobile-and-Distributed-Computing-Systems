@@ -40,6 +40,27 @@ func TestAddMeContact(t *testing.T) {
 	})
 }
 
+func TestRemoveContact(t *testing.T) {
+	expectedContacts := []Contact{
+		NewContact(NewKademliaID("0000000000000000000000000000000000000007"), "nodeB"),
+		NewContact(NewKademliaID("0000000000000000000000000000000000000003"), "nodeC"),
+		NewContact(NewKademliaID("0000000000000000000000000000000000000001"), "nodeD"),
+	}
+	contactToRemove := NewContact(NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")
+	contactsToAdd := append(expectedContacts, contactToRemove)
+	rt := NewRoutingTable(NewContact(NewKademliaID("ABC0000000000000000000000000000000000000"), "me"))
+	for _, contact := range contactsToAdd {
+		rt.AddContact(contact)
+	}
+
+	rt.RemoveContact(contactToRemove.ID)
+	actualContacts := rt.Nodes()
+
+	for _, actualContact := range actualContacts {
+		assert.Contains(t, expectedContacts, actualContact)
+	}
+}
+
 func TestNodes(t *testing.T) {
 	me := NewContact(NewKademliaID("ABC0000000000000000000000000000000000000"), "me")
 	nodeA := NewContact(NewKademliaID("000000000000000000000000000000000000000F"), "nodeA")

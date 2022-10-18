@@ -6,6 +6,9 @@ type IRoutingTable interface {
 	// AddContact add a new contact to the correct Bucket. Contact will not be added if it is me
 	AddContact(contact Contact)
 
+	// RemoveContact removes a contact from the correct Bucket if it exists
+	RemoveContact(contactId *KademliaID)
+
 	// FindClosestContacts finds the count closest Contacts to the target in the RoutingTable
 	FindClosestContacts(target *KademliaID, count int) []Contact
 
@@ -40,6 +43,12 @@ func (routingTable *RoutingTable) AddContact(contact Contact) {
 	bucketIndex := routingTable.getBucketIndex(contact.ID)
 	bucket := routingTable.buckets[bucketIndex]
 	bucket.AddContact(contact)
+}
+
+func (routingTable *RoutingTable) RemoveContact(contactId *KademliaID) {
+	bucketIndex := routingTable.getBucketIndex(contactId)
+	bucket := routingTable.buckets[bucketIndex]
+	bucket.RemoveContact(contactId)
 }
 
 func (routingTable *RoutingTable) FindClosestContacts(target *KademliaID, count int) []Contact {
