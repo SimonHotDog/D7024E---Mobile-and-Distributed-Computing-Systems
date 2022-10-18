@@ -14,6 +14,8 @@ type RoutingTableMockObject struct {
 
 func (rt *RoutingTableMockObject) AddContact(contact routing.Contact) {}
 
+func (rt *RoutingTableMockObject) RemoveContact(contactId *routing.KademliaID) {}
+
 func (rt *RoutingTableMockObject) FindClosestContacts(target *routing.KademliaID, count int) []routing.Contact {
 	args := rt.Called(target, count)
 	return util.GetArrayOrNil[routing.Contact](args, 0)
