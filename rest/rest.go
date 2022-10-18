@@ -21,9 +21,9 @@ type Data struct {
 // Replies to successful put (store) requests with appropriate HTTP headers and json data and denies failed lookups
 func putHandle(w http.ResponseWriter, r *http.Request) {
 	//help from stackoverflow.com/questions/46579429/golang-cant-get-body-from-request-getbody'
-	if r.Method == "GET" {
+	if r.Method != "PUT" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Invalid GET request, try /objects/{hash}"))
+		w.Write([]byte("Invalid HTTP request, try /objects/{hash} for GET"))
 		return
 	}
 	b, err := ioutil.ReadAll(r.Body)
@@ -49,9 +49,9 @@ func putHandle(w http.ResponseWriter, r *http.Request) {
 
 // Replies to get (lookup) requests with json data of the lookup target
 func getHandle(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "PUT" {
+	if r.Method != "GET" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Invalid PUT request, try /objects"))
+		w.Write([]byte("Invalid HTTP request, try /objects for PUT"))
 		return
 	}
 	hash := strings.Split(r.URL.Path, "/")[2]
