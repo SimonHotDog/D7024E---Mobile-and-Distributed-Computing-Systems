@@ -327,6 +327,7 @@ func (network *Network) sendRequest(recipient *net.UDPAddr, msg NetworkMessage, 
 	len, err := conn.Read(response_buffer)
 	if err != nil {
 		log.Printf("UDP read error: %v\n", err)
+		network.routingtable.RemoveContact(msg.Target.ID)
 		return nil, err
 	}
 
