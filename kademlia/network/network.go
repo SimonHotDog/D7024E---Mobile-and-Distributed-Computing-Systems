@@ -327,7 +327,9 @@ func (network *Network) sendRequest(recipient *net.UDPAddr, msg NetworkMessage, 
 	len, err := conn.Read(response_buffer)
 	if err != nil {
 		log.Printf("UDP read error: %v\n", err)
-		network.routingtable.RemoveContact(msg.Target.ID)
+		if msg.Target.ID != nil {
+			network.routingtable.RemoveContact(msg.Target.ID)
+		}
 		return nil, err
 	}
 
@@ -337,6 +339,9 @@ func (network *Network) sendRequest(recipient *net.UDPAddr, msg NetworkMessage, 
 		log.Printf("Deserialize error: %s\n", err)
 		return nil, err
 	}
+
+	// Add contact to routingtable
+	network.routingtable.AddContact(*response.Sender)
 
 	return response, nil
 }
