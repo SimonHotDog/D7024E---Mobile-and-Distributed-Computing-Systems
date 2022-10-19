@@ -5,13 +5,13 @@ import (
 	"d7024e/kademlia"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"strings"
 )
 
-var context kademlia.Kademlia
+var context kademlia.IKademlia
 
 type Data struct {
 	Data     string
@@ -26,12 +26,12 @@ func putHandle(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Invalid HTTP request, try /objects/{hash} for GET"))
 		return
 	}
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err == nil {
 		str := string(b[:])
 		split := strings.Split(str, "=")
 		data := split[1]
-		res, errPut := commands.PutObjectInStore(&context, data)
+		res, errPut := commands.PutObjectInStore(context, data)
 
 		w.Header().Set("Content-Type", "application/json")
 		if errPut != nil {
@@ -55,13 +55,13 @@ func getHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hash := strings.Split(r.URL.Path, "/")[2]
-	str, err := commands.GetObjectByHash(&context, hash)
+	str, err := commands.GetObjectByHash(context, hash)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, err.Error())
 	} else {
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, str)
 	}
 
@@ -74,7 +74,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 }
 
 // Directs webpages to corresponding handlers and starts listener
-func Restful(kademlia kademlia.Kademlia) {
+func Restful(kademlia kademlia.IKademlia) {
 	context = kademlia
 	http.HandleFunc("/", homePage)
 	http.HandleFunc("/objects", putHandle)
