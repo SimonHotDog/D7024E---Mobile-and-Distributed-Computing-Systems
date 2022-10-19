@@ -6,8 +6,8 @@ import (
 	"d7024e/kademlia/datastore"
 	"d7024e/kademlia/network"
 	"d7024e/kademlia/network/routing"
-	"d7024e/util"
 	"d7024e/rest"
+	"d7024e/util"
 	"flag"
 	"io"
 	"log"
@@ -36,7 +36,7 @@ func main() {
 	go network.Listen() // TODO: Notify it is actually listening
 	time.Sleep(1 * time.Second)
 	go context.JoinNetwork(&bootstrap)
-	go rest.Restful(*context)
+	go rest.Restful(context)
 	cli.Open(true)
 }
 
