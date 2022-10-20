@@ -1,0 +1,11 @@
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y curl
+RUN echo 'echo "----------------\n\
+    Commands to use REST API\n\
+    \n\
+    PUT: curl --request PUT --data \"value={value}\" http://172.19.0.{id}:8081/objects \n\
+    GET: curl http://172.19.0.{id}:8081/objects/{hash} \n\
+----------------"' >> /etc/bash.bashrc
+
+CMD ["/bin/bash"]
