@@ -52,4 +52,8 @@ func (k KademliaMockObject) ForgetData(hash string, contacts []routing.Contact) 
 	return args.Error(0)
 }
 
-func (k KademliaMockObject) JoinNetwork(contact *routing.Contact) {}
+func (k KademliaMockObject) JoinNetwork(contact *routing.Contact, retries int) bool {
+	args := k.Called(contact)
+
+	return args.Bool(0)
+}
