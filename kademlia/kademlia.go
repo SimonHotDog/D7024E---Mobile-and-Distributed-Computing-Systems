@@ -8,8 +8,16 @@ import (
 	"d7024e/util"
 	"errors"
 	"log"
+	"math"
+	"math/rand"
 	"sync"
+	"sync/atomic"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 type IKademlia interface {
 	// Get me
@@ -21,7 +29,7 @@ type IKademlia interface {
 	LookupData(hash string) ([]byte, *routing.Contact)
 	Store(data []byte) (string, error)
 	ForgetData(hash string, contacts []routing.Contact) error
-	JoinNetwork(contact *routing.Contact)
+	JoinNetwork(contact *routing.Contact, retries int) bool
 }
 
 type Kademlia struct {
@@ -170,15 +178,42 @@ func (kademlia *Kademlia) ForgetData(hash string, contacts []routing.Contact) er
 }
 
 // Join a kademlia network by through a known node
-func (kademlia *Kademlia) JoinNetwork(knownNode *routing.Contact) {
+func (kademlia *Kademlia) JoinNetwork(knownNode *routing.Contact, retries int) bool {
 	log.Printf("Joining network via %v...", knownNode)
+
+	contacts, deadContacts := kademlia.joinNetworkAux(knownNode, 0, retries)
+
+	if contacts == 0 {
+		log.Printf("Failed to join network, no contacts received")
+		return false
+	} else if contacts != 0 && contacts == deadContacts {
+		log.Printf("Failed to join network, no contacts responded in time")
+		return false
+	}
+	log.Printf("Succesfully joined network, recieved %d (%d dead) nodes from %v\n", contacts, deadContacts, knownNode.Address)
+	return true
+}
+
+func (kademlia *Kademlia) joinNetworkAux(knownNode *routing.Contact, numberOfRetries int, maxRestries int) (numberOfContacts, deadContacts int) {
+	// Limit number of attempts to join network
+	if numberOfRetries > maxRestries {
+		return 0, 0
+	}
+
 	repononseChannel := make(chan []routing.Contact)
 	go rpc.SendFindContactMessage(kademlia.network, knownNode, kademlia.me.ID, repononseChannel)
 
 	// Ping all recieved contacts and add them to routing-table if they respond
 	contacts := <-repononseChannel
+	backoffTime := getExponentialBackoffTime(numberOfRetries)
+	if len(contacts) == 0 {
+		log.Printf("No contacts recieved from %v, trying again in %v\n", knownNode.Address, backoffTime)
+		time.Sleep(backoffTime)
+		return kademlia.joinNetworkAux(knownNode, numberOfRetries+1, maxRestries)
+	}
+
+	var deadNodes uint32
 	var wg sync.WaitGroup
-	c := util.MakeCounter()
 	for _, contact := range contacts {
 		wg.Add(1)
 		go func(contact routing.Contact) {
@@ -186,12 +221,36 @@ func (kademlia *Kademlia) JoinNetwork(knownNode *routing.Contact) {
 			go rpc.SendPingMessage(kademlia.network, &contact, aliveChannel)
 			if <-aliveChannel {
 				kademlia.network.GetRoutingTable().AddContact(contact)
-				c.Increase()
+			} else {
+				atomic.AddUint32(&deadNodes, 1)
 			}
 			wg.Done()
 		}(contact)
 	}
 
 	wg.Wait()
-	log.Printf("Joined network and recieved %d (%d alive) nodes close to me from %v\n", len(contacts), c.GetNext()-1, knownNode.Address)
+
+	// If all nodes are dead, try again
+	if len(contacts) == int(deadNodes) {
+		time.Sleep(backoffTime)
+		return kademlia.joinNetworkAux(knownNode, numberOfRetries+1, maxRestries)
+	}
+
+	return len(contacts), int(deadNodes)
+}
+
+func getExponentialBackoffTime(attemptNumber int) time.Duration {
+	// Inspiration from https://cloud.google.com/iot/docs/how-tos/exponential-backoff
+	wait := int(math.Pow(2, float64(attemptNumber)))
+	randomTime := rand.Intn(20)
+	proposedBackoffTime := wait + randomTime
+	maxWaitTime := 1000
+	return time.Duration(min(proposedBackoffTime, maxWaitTime)) * time.Millisecond
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

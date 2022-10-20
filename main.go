@@ -35,7 +35,7 @@ func main() {
 
 	go network.Listen() // TODO: Notify it is actually listening
 	time.Sleep(1 * time.Second)
-	go context.JoinNetwork(&bootstrap)
+	go context.JoinNetwork(&bootstrap, 60)
 	go rest.Restful(context)
 	cli.Open(true)
 }
