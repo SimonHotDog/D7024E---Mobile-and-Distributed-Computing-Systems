@@ -242,6 +242,105 @@ func TestForgetData_WhenHashIsInvalid_ShouldReturnError(t *testing.T) {
 	t.Skip("Not implemented")
 }
 
-func TestJoinNetwork(t *testing.T) {
+func TestJoinNetwork_WhenNetworkIsEmpty(t *testing.T) {
+	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "me")
+	knownNode := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), "bootstrap")
+	noContactsResponse := network.NetworkMessage{Contacts: []routing.Contact{}}
+
+	networkMock := new(mocks.NetworkMockObject)
+	networkMock.On("GetMe").Return(&me)
+	networkMock.On("NewNetworkMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(new(network.NetworkMessage))
+	networkMock.On("SendMessageWithResponse", mock.Anything).Return(noContactsResponse, false)
+
+	kademlia := NewKademlia(&me, networkMock, nil)
+	actual := kademlia.JoinNetwork(&knownNode, 1)
+
+	assert.False(t, actual)
+}
+
+func TestJoinNetwork_WhenNetworkIsNonEmpty(t *testing.T) {
+	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "me")
+	knownNode := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), "bootstrap")
+	nodeA := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), "nodeA")
+
+	networkMessageResponse := network.NetworkMessage{Contacts: []routing.Contact{nodeA}}
+
+	networkMock := new(mocks.NetworkMockObject)
+	routingMock := new(mocks.RoutingTableMockObject)
+	networkMock.On("GetMe").Return(&me)
+	networkMock.On("GetRoutingTable").Return(routingMock)
+	networkMock.On("NewNetworkMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(new(network.NetworkMessage))
+	networkMock.On("SendMessageWithResponse", mock.Anything).Return(networkMessageResponse, false)
+
+	kademlia := NewKademlia(&me, networkMock, nil)
+	actual := kademlia.JoinNetwork(&knownNode, 1)
+
+	assert.True(t, actual)
+}
+
+func TestJoinNetworkAux_WhenSomeNodesRespond(t *testing.T) {
+	expectedNumberOfNodes := 2
+	expectedNumberOfDeadNodes := 1
+
+	me := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000000"), "me")
+	knownNode := routing.NewContact(routing.NewKademliaID("0000000000000000000000000000000000000002"), "bootstrap")
+	nodeA := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000A"), "nodeA")
+	nodeB := routing.NewContact(routing.NewKademliaID("000000000000000000000000000000000000000B"), "nodeB")
+
+	findnode_response := network.NetworkMessage{Contacts: []routing.Contact{nodeA, nodeB}}
+	findnode_request := network.NetworkMessage{RPC: network.MESSAGE_RPC_FIND_NODE}
+	nodeA_ping_request := network.NetworkMessage{RPC: network.MESSAGE_RPC_PING, Target: &nodeA}
+	nodeB_ping_request := network.NetworkMessage{RPC: network.MESSAGE_RPC_PING, Target: &nodeB}
+
+	networkMock := new(mocks.NetworkMockObject)
+	routingMock := new(mocks.RoutingTableMockObject)
+	networkMock.On("GetMe").Return(&me)
+	networkMock.On("GetRoutingTable").Return(routingMock)
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_FIND_NODE, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&findnode_request)
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_PING, mock.Anything, &nodeA, mock.Anything, mock.Anything, mock.Anything).Return(&nodeA_ping_request)
+	networkMock.On("NewNetworkMessage", network.MESSAGE_RPC_PING, mock.Anything, &nodeB, mock.Anything, mock.Anything, mock.Anything).Return(&nodeB_ping_request)
+	networkMock.On("SendMessageWithResponse", findnode_request).Return(findnode_response, false)
+	networkMock.On("SendMessageWithResponse", nodeA_ping_request).Return(*new(network.NetworkMessage), true)
+	networkMock.On("SendMessageWithResponse", nodeB_ping_request).Return(*new(network.NetworkMessage), false)
+
+	kademlia := NewKademlia(&me, networkMock, nil)
+	actualNodesRecieved, actualNodesDead := kademlia.joinNetworkAux(&knownNode, 0, 1)
+
+	assert.Equal(t, expectedNumberOfNodes, actualNodesRecieved)
+	assert.Equal(t, expectedNumberOfDeadNodes, actualNodesDead)
+}
+
+func TestJoinNetworkAux(t *testing.T) {
 	t.Skip("Not implemented")
+}
+
+func Test_min(t *testing.T) {
+	type args struct {
+		a int
+		b int
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expected int
+	}{
+		{name: "a < b", args: args{1, 2}, expected: 1},
+		{name: "a == b", args: args{2, 2}, expected: 2},
+		{name: "a > b", args: args{3, 2}, expected: 2},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual := min(test.args.a, test.args.b)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
+func Test_getExponentialBackoffTime(t *testing.T) {
+	attemptNumber := 3
+	expectedAtLeast := 8 * time.Millisecond
+
+	actual := getExponentialBackoffTime(attemptNumber)
+
+	assert.Greater(t, actual, expectedAtLeast) // We can't assert exact value because of randomness
 }
