@@ -14,6 +14,9 @@ func ForgetObjectInStore(context kademlia.IKademlia, args string) (string, error
 
 	cleanHash := RemoveDoubleQuotes(args)
 	closestContacts := context.LookupContact(routing.NewKademliaID(cleanHash))
+	if closestContacts == nil {
+		return "", errors.New("Object not found")
+	}
 	err := context.ForgetData(cleanHash, closestContacts)
 	if err != nil {
 		return "", err

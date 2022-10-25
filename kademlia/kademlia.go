@@ -53,6 +53,9 @@ func (kademlia *Kademlia) GetDataStore() datastore.IDataStore { return kademlia.
 
 // Lookup contacts
 func (kademlia *Kademlia) LookupContact(targetID *routing.KademliaID) []routing.Contact {
+	if targetID == nil {
+		return nil
+	}
 	candidateList := NewCandidateList(targetID, K)
 	kClosestContacts := kademlia.network.GetRoutingTable().FindClosestContacts(targetID, K)
 
