@@ -21,7 +21,7 @@ type Data struct {
 // Replies to successful put (store) requests with appropriate HTTP headers and json data and denies failed lookups
 func putHandle(w http.ResponseWriter, r *http.Request) {
 	//help from stackoverflow.com/questions/46579429/golang-cant-get-body-from-request-getbody'
-	if r.Method != "PUT" {
+	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte("Invalid HTTP request, try /objects/{hash} for GET"))
 		return
