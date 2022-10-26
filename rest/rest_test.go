@@ -18,7 +18,7 @@ func TestPutHandle_ShoudlReturnSucces_WhenRequestIsCorrect(t *testing.T) {
 	expectedHash := "myhash"
 	valueToSend := "my message"
 	reqBody := strings.NewReader(fmt.Sprintf("message=%s", valueToSend))
-	req := httptest.NewRequest(http.MethodPut, "/objects", reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/objects", reqBody)
 	w := httptest.NewRecorder()
 
 	kademliaMock := new(mocks.KademliaMockObject)
@@ -40,7 +40,7 @@ func TestPutHandle_ShoudlReturnSucces_WhenRequestIsCorrect(t *testing.T) {
 
 func TestPutHandle_ShouldReturnError_WhenPutObjectInStoreFails(t *testing.T) {
 	reqBody := strings.NewReader("message=")
-	req := httptest.NewRequest(http.MethodPut, "/objects", reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/objects", reqBody)
 	w := httptest.NewRecorder()
 
 	kademliaMock := new(mocks.KademliaMockObject)

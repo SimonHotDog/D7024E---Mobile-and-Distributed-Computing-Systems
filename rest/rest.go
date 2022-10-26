@@ -51,7 +51,7 @@ func putHandle(w http.ResponseWriter, r *http.Request) {
 func getHandle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Invalid HTTP request, try /objects for PUT"))
+		w.Write([]byte("Invalid HTTP request, try /objects for POST"))
 		return
 	}
 	hash := strings.Split(r.URL.Path, "/")[2]
@@ -69,7 +69,7 @@ func getHandle(w http.ResponseWriter, r *http.Request) {
 
 // Homepage guide
 func homePage(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Example of put: /objects")
+	fmt.Fprintln(w, "Example of post: /objects")
 	fmt.Fprintln(w, "Example of get: /objects/{hash}")
 }
 
